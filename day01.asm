@@ -17,7 +17,27 @@ main:
 	call    map_input_file
 	add	s11, a0, a1
 
-	clr	s0
+	addi	sp, sp, -8
+	sd	a0, 0(sp)
+
+	li	s4, 0
+	call	solve
+
+	ld	a0, 0(sp)
+	addi	sp, sp, 8
+	li	s4, 1
+	call	solve
+
+	li      a7, SYS_EXIT
+	li      a0, EXIT_SUCCESS
+	ecall
+
+
+solve:
+	addi	sp, sp, -8
+	sd	ra, 0(sp)
+
+	clr	s0				# initialize sum
 
 loop_input:
 	# read first digit fromp the beginning of the line
@@ -48,9 +68,9 @@ loop:
 	mv	a0, s0
 	call	print_int
 
-	li      a7, SYS_EXIT
-	li      a0, EXIT_SUCCESS
-	ecall
+	ld	ra, 0(sp)
+	addi	sp, sp, 8
+	ret
 
 read_next_digit:
 	addi	sp, sp, -32
@@ -67,7 +87,10 @@ rnd_loop:
 	lb	s0, 0(s1)			# read character
 	mv	a0, s0
 	call	is_digit			# check if digit
+	beqz	s4, skip_ldigit
 	beqz	a0, rnd_ldigit			# not a digit, attemps reading as a letter-digit
+skip_ldigit:
+	beqz	a0, rnd_loop			# not a digit, attemps reading as a letter-digit
 	li	t0, ASCII_ZERO
 	sub	a1, s0, t0			# turn ASCII code to actual value
 rnd_end:
