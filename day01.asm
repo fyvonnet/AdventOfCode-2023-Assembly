@@ -8,8 +8,8 @@
 main:
 	# sort letter-digits for binary search
 	la	a0, ldigits
-	li	a1, 9
-	li	a2, 11
+	li	a1, 9				# 9 elements
+	li	a2, 11				# elements are 11 bytes long
 	la	a3, compar
 	call	quicksort
 
@@ -18,14 +18,17 @@ main:
 	add	s11, a0, a1
 
 	addi	sp, sp, -8
-	sd	a0, 0(sp)
+	sd	a0, 0(sp)			# save input pointer
 
-	li	s4, 0
+	# part 1
+	li	s4, 0				# skip letter digits
 	call	solve
 
-	ld	a0, 0(sp)
+	ld	a0, 0(sp)			# restore input pointer
 	addi	sp, sp, 8
-	li	s4, 1
+
+	# part 2
+	li	s4, 1				# don't skip letter digits
 	call	solve
 
 	li      a7, SYS_EXIT
@@ -62,7 +65,7 @@ loop:
 	call    read_next_digit
 	add	s1, s1, a1			# add second digit to the calibration value
 	add	s0, s0, s1			# add the calibration value to the sum
-	mv	a0, s3
+	mv	a0, s3				# move to next line
 	blt	a0, s11, loop_input		# loop of EOF not reached
 
 	mv	a0, s0
@@ -87,10 +90,10 @@ rnd_loop:
 	lb	s0, 0(s1)			# read character
 	mv	a0, s0
 	call	is_digit			# check if digit
-	beqz	s4, skip_ldigit
+	beqz	s4, skip_ldigit			# skip search for letter digit on part 1
 	beqz	a0, rnd_ldigit			# not a digit, attemps reading as a letter-digit
 skip_ldigit:
-	beqz	a0, rnd_loop			# not a digit, attemps reading as a letter-digit
+	beqz	a0, rnd_loop			# not a digit, keep on searching
 	li	t0, ASCII_ZERO
 	sub	a1, s0, t0			# turn ASCII code to actual value
 rnd_end:
