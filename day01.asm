@@ -138,16 +138,6 @@ search_left:
 	addi	t2, t1, -1			# R = m - 1
 	j	rnd_ldigit_loop
 	
-is_digit:
-	li	t0, 0
-	li	t1, ASCII_ZERO
-	blt	a0, t1, is_digit_end
-	li	t1, ASCII_NINE
-	bgt	a0, t1, is_digit_end
-	li	t0, 1
-is_digit_end:
-	mv	a0, t0
-	ret
 
 	# a0: candidate string
 	# a1: model string
