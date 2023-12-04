@@ -10,6 +10,7 @@ main:
 	call    map_input_file
 	add	s11, a0, a1
 
+	# count numbers per line and cards in the input
 
 	mv	t0, a0
 	li	t2, ASCII_LF
@@ -23,11 +24,15 @@ loop_seek_eol:
 	div	s2, a1, t0			# number of cards
 	addi	t0, t0, -3			# substract separator and LF from line length
 	addi	t0, t0, -9 			# substract "Card XXX:"
-	#addi	t0, t0, -7 			# skip "Card X:"
 
 	li	t1, 3				# 3 characters per number
 	div	s1, t0, t1			# numbers per line
 
+	# start by counting winning numbers for every cards
+	# since there are no duplicates in the winning numbers and numbers you have, lets just 
+	# put every number of a card in a single vector, sort it and count the duplicates
+
+	# add vector terminator
 	li	t0, -1
 	dec	sp
 	sb	t0, 0(sp)
@@ -37,8 +42,6 @@ loop_seek_eol:
 	
 	sub	sp, sp, s1			# allocate stack space for numbers vector
 	mv	s4, sp				# pointer to vector
-	
-	
 
 
 	mv	s5, s3				# copy pointer to winning numbers count
@@ -46,32 +49,35 @@ loop_seek_eol:
 loop_input:
 	mv	s6, s4				# copy pointer to numbers vector
 	addi	s0, s0, 9 			# skip "Card XXX:"
-	#addi	s0, s0, 7 			# skip "Card X:"
 
-	# skip to next digit
 loop_skip_to_digit:
+	# skip to next digit
 	inc	s0
 	lb	a0, 0(s0)
 	call	is_digit
 	beqz	a0, loop_skip_to_digit
 
+	# parse the integer and store it on the vector
 	mv	a0, s0
 	call	parse_integer
 	mv	s0, a0
 	sb	a1, 0(s6)
 	inc	s6
 
+	# check for end of line
 	li	t0, ASCII_LF
 	lb	t1, 0(s0)
 	bne	t0, t1, loop_skip_to_digit	# loop if LF not reached
 
+	# sort the numbers vector
 	mv	a0, sp
 	mv	a1, s1
 	li	a2, 1
 	la	a3, compar
 	call	quicksort
 	
-	addi	t0, s1, -1			# initilize countdown
+	# count duplicates
+	addi	t0, s1, -1			# initialize countdown
 	mv	t1, sp				# pointer to sorted list of numbers
 	clr	t4				# initialize winning numbers counter
 loop_search_dup:
@@ -83,12 +89,9 @@ not_equal:
 	inc	t1
 	dec	t0
 	bnez	t0, loop_search_dup		# loop if countdown not null
-
 	sb	t4, 0(s5)			# store winning numbers count in the vactor
 	inc	s5
-
 	inc	s0				# skip to next line
-
 	blt	s0, s11, loop_input
 
 	add	sp, sp, s1			# free numbers vector
@@ -161,18 +164,18 @@ loop_init:
 loop_part2:
 	ld	t2, 0(t0)			# load current card count
 	bltz	t2, loop_part2_end		# vector terminator reached, exit loop
-	add	a0, a0, t2			# add to sum
+	add	a0, a0, t2			# add current card count to sum
 	lb	t3, 0(t1)			# load winning numbers count
 	beqz	t3, loop_part2_next		# no winning numbers, skip
 	addi	t4, t0, 8			# pointer to next card
 	mv	t6, t3				# initialize countdown
 loop_won_cards:
-	beqz	t6, loop_part2_next		# countdown over
-	ld	t5, 0(t4)			# load cards alread won
+	beqz	t6, loop_part2_next		# countdown over, end loop
+	ld	t5, 0(t4)			# load number of cards alread won
 	bltz	t5, loop_part2_next		# vector terminator reached, end loop
 	add	t5, t5, t2			# add as much won cards as current cards count
-	sd	t5, 0(t4)
-	add	t4, t4, 8
+	sd	t5, 0(t4)			# store updated won cards count
+	add	t4, t4, 8			# move on to next card
 	dec	t6
 	j	loop_won_cards
 loop_part2_next:
