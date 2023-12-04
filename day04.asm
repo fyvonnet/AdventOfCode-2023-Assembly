@@ -113,14 +113,9 @@ loop_part1:
 	beqz	t1, no_points			# no winning numbers, no points
 	bltz	t1, loop_part1_end		# loop end if negative number read
 	li	t2, 1				# initialize score for current card
-	dec	t1
-loop_score:
-	beqz	t1, loop_score_end
-	slli	t2, t2, 1			# double score for each winning number
-	dec	t1
-	j	loop_score
-loop_score_end:
-	add	t3, t3, t2			# add coard score to total score
+	dec	t1				# one multiplication per point over 1
+	sll	t2, t2, t1			# use left shift to multiply by 2
+	add	t3, t3, t2			# add card score to total score
 no_points:
 	inc	t0				# point to next winning number count
 	j	loop_part1
