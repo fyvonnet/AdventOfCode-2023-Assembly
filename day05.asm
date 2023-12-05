@@ -42,8 +42,20 @@ loop_read_maps:
 	dec	s4
 	bnez	s4, loop_read_maps
 
+
+
+        ######     #    ######  #######      #
+        #     #   # #   #     #    #        ##
+        #     #  #   #  #     #    #       # #
+        ######  #     # ######     #         #
+        #       ####### #   #      #         #
+        #       #     # #    #     #         #
+        #       #     # #     #    #       #####
+
+
 	ld	s2, 0(s0)			# load pointer to seeds vector
 	li	s3, -1				# maximum unsigned value
+	mv	s4, s1				# initialize countdown
 loop_seeds:
 	ld	a0, 0(s2)
 	add	a1, s0, 8
@@ -51,12 +63,46 @@ loop_seeds:
 	bgtu	a0, s3, no_new_min
 	mv	s3, a0
 no_new_min:
-	dec	s1
+	dec	s4
 	addi	s2, s2, 8			# point to next seed
-	bnez	s1, loop_seeds
+	bnez	s4, loop_seeds
 
 	mv	a0, s3
 	call	print_int
+
+
+        ######     #    ######  #######     #####
+        #     #   # #   #     #    #       #     #
+        #     #  #   #  #     #    #             #
+        ######  #     # ######     #        #####
+        #       ####### #   #      #       #
+        #       #     # #    #     #       #
+        #       #     # #     #    #       #######
+
+
+	ld	s2, 0(s0)			# load pointer to seeds vector
+	li	s3, -1				# maximum unsigned value
+	mv	s4, s1				# initialize countdown
+loop_seeds_2:
+	ld	s5, 0(s2)
+	ld	s6, 8(s2)
+loop_locations:
+	mv	a0, s5
+	add	a1, s0, 8
+	call	get_location
+	bgtu	a0, s3, no_new_min_2
+	mv	s3, a0
+no_new_min_2:
+	inc	s5
+	dec	s6
+	bnez	s6, loop_locations
+	addi	s2, s2, 16
+	addi	s4, s4, -2	
+	bnez	s4, loop_seeds_2
+
+        mv      a0, s3
+        call    print_int
+
 	
 end:
 
