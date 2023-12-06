@@ -57,7 +57,6 @@ loop_races:
 	lh	a0, 0(s1)				# load time
 	lh	a1, 0(s2)				# load record distance
 	call	count_victories
-stop_here:
 	mul	s3, s3, a0
 	addi	s1, s1, 2				# move pointer to next time
 	addi	s2, s2, 2				# move pointer to next distance
@@ -111,7 +110,7 @@ count_victories:
 	sd	s1, 16(sp)
 
 	mv	s0, a0					# time
-	mv	s1, a1					# distance
+	addi	s1, a1, 1				# minimal distance to win
 
 	# solve -x^2 + Tx - D = 0
 
@@ -124,7 +123,7 @@ count_victories:
 	# delta = T^2 - 4D
 	mul	t0, a0, a0
 	li	t1, 4
-	mul	t2, a1, t1
+	mul	t2, s1, t1
 	sub	t0, t0, t2
 	fcvt.d.l fa0, t0				# convert delta from int to double
 	call	sqrt					# square root of delta
@@ -132,7 +131,7 @@ count_victories:
 
 	fadd.d	fs3, fs1, fs0				# -b + sqrt(delta)
 	fdiv.d	fa0, fs3, fs2				# (-b + sqrt(delta)) / 2a
-	call	floor
+	call	ceil
 	fcvt.l.d s0, fa0
 
 	fsub.d	fs3, fs1, fs0				# -b - sqrt(delta)
@@ -141,6 +140,7 @@ count_victories:
 	fcvt.l.d s1, fa0
 
 	sub	a0, s1, s0
+	inc	a0
 	
 	ld	ra,  0(sp)
 	ld	s0,  8(sp)
