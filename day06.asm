@@ -57,6 +57,7 @@ loop_races:
 	lh	a0, 0(s1)				# load time
 	lh	a1, 0(s2)				# load record distance
 	call	count_victories
+stop_here:
 	mul	s3, s3, a0
 	addi	s1, s1, 2				# move pointer to next time
 	addi	s2, s2, 2				# move pointer to next distance
@@ -104,19 +105,50 @@ loop_races:
 
 
 count_victories:
-	li	t0, 1					# start with 1ms push time or 1mm/s speed
-	dec	a0					# one less ms available
-	clr	t4					# initialize counter
-loop_times:
-	mul	t3, t0, a0				# distance traveled during remaining time
-	ble	t3, a1, no_win				# did not beat record
-	inc	t4	
-no_win:
-	inc	t0					# increase puch time and speed
-	dec	a0					# decrease remaining race time
-	bnez	a0, loop_times				# loop if race time remaining
-	mv	a0, t4
+	addi	sp, sp, -24
+	sd	ra,  0(sp)
+	sd	s0,  8(sp)
+	sd	s1, 16(sp)
+
+	mv	s0, a0					# time
+	mv	s1, a1					# distance
+
+	# solve -x^2 + Tx - D = 0
+
+	neg 	t0, s0
+	fcvt.d.l fs1, t0				# -b / -T
+
+	li	t0, -2
+	fcvt.d.l fs2, t0				# 2a
+	
+	# delta = T^2 - 4D
+	mul	t0, a0, a0
+	li	t1, 4
+	mul	t2, a1, t1
+	sub	t0, t0, t2
+	fcvt.d.l fa0, t0				# convert delta from int to double
+	call	sqrt					# square root of delta
+	fmv.d	fs0, fa0
+
+	fadd.d	fs3, fs1, fs0				# -b + sqrt(delta)
+	fdiv.d	fa0, fs3, fs2				# (-b + sqrt(delta)) / 2a
+	call	floor
+	fcvt.l.d s0, fa0
+
+	fsub.d	fs3, fs1, fs0				# -b - sqrt(delta)
+	fdiv.d	fa0, fs3, fs2				# (-b - sqrt(delta)) / 2a
+	call	floor
+	fcvt.l.d s1, fa0
+
+	sub	a0, s1, s0
+	
+	ld	ra,  0(sp)
+	ld	s0,  8(sp)
+	ld	s1, 16(sp)
+	addi	sp, sp, 24
+
 	ret
+
 
 
 read_line:
