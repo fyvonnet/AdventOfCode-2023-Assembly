@@ -216,29 +216,6 @@ loop_copy_numbers:
 	ret
 	
 	
-
-	# a0: input pointer
-skip_to_digit:
-	addi	sp, sp, -16
-	sd	s0, 0(sp)
-	sd	ra, 8(sp)
-
-	mv	s0, a0
-	dec	s0
-loop_skip_to_digit:
-	inc	s0
-	lb	a0, 0(s0)
-	call	is_digit
-	beqz	a0, loop_skip_to_digit
-	mv	a0, s0
-	
-	ld	s0, 0(sp)
-	ld	ra, 8(sp)
-	addi	sp, sp, 16
-
-	ret
-
-
 compar:
 	ld	t0, SOURCE_START(a0)
 	ld	t1, SOURCE_START(a1)
