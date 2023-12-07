@@ -105,15 +105,16 @@ get_hand_strength:
 	li	t0, 5
 loop_count_cards:
 	lb	t1, 0(s0)			# load card strength
-	beqz	t1, skip_count			# do not count jokers
 	add	t1, t1, sp			# compute counter address
 	lb	t2, 0(t1)			# load count
 	inc	t2				# increment count
 	sb	t2, 0(t1)			# store count
-skip_count:
 	inc	s0
 	dec	t0
 	bnez	t0, loop_count_cards
+
+	lb	s0, 0(sp)			# get jokers count
+	sb	zero, 0(sp)			# remove jokers from the counts
 
 	# sort count in reverse to generate a 64-bits value
 	mv	a0, sp
@@ -122,16 +123,22 @@ skip_count:
 	la	a3, compar
 	call	quicksort
 
+	lb	t0, 0(sp)			# load highest card count
+	add	t0, t0, s0			# add jokers
+	sb	t0, 0(sp)			# store new count
+
 	# search hand 64-bits value in the hand types vector
 	ld	t0, 0(sp)
 	la	t1, hand_types
+	mv	t3, t1
 loop_search_type:
 	ld	t2, 0(t1)
 	beq	t0, t2, loop_search_type_end
-	addi	t1, t1, 9
+	addi	t1, t1, 8
 	j	loop_search_type
 loop_search_type_end:
-	lb	a0, 8(t1)
+	sub	t1, t1, t3
+	srli	a0, t1, 3
 
 	addi	sp, sp, 13
 
@@ -206,53 +213,10 @@ cards:
 	.ascii	"J23456789TQKA"
 
 hand_types:
-	# 5 cards / no joker
 	.quad	0x0000000101010101			# high card
-	.byte	0
 	.quad	0x0000000001010102			# one pari
-	.byte	1
 	.quad	0x0000000000010202			# two pairs
-	.byte	2
 	.quad	0x0000000000010103			# three of a kind
-	.byte	3
 	.quad	0x0000000000000203			# full house
-	.byte	4
 	.quad	0x0000000000000104			# four of a kind
-	.byte	5
 	.quad	0x0000000000000005			# five of a kind
-	.byte	6
-
-	# 4 cards / 1 joker
-	.quad	0x0000000001010101			# high card
-	.byte	1					# becomes pair
-	.quad	0x0000000000010102			# one pair
-	.byte	3					# becomes three of a kind
-	.quad	0x0000000000000202			# two pairs
-	.byte	4					# becomes full house
-	.quad	0x0000000000000103			# three of a kind
-	.byte	5					# becomes four of a kind
-	.quad	0x0000000000000004			# four of a kind
-	.byte	6					# becomes five of a kind
-
-	# 3 cards / 2 jokers
-	.quad	0x0000000000010101			# high card
-	.byte	3					# becomes three of a kind
-	.quad	0x0000000000000102			# one pair
-	.byte	5					# becomes four of a kind
-	.quad	0x0000000000000003			# three of a kind
-	.byte	6					# becomes five of a kind
-
-	# 2 cards / 3 jokers
-	.quad	0x0000000000000101			# high card
-	.byte	5					# becomes four of a kind
-	.quad	0x0000000000000002			# one pair
-	.byte	6					# becomes five of a kind
-
-	# 1 card / 4 jokers
-	.quad	0x0000000000000001			# high card
-	.byte	6					# becomes five of a kind
-
-	# no cards / 5 jokers
-	.quad	0x0000000000000000			# no cards
-	.byte	6					# becomes five of a kind
-	
