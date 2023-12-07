@@ -14,14 +14,9 @@ main:
 	clr	s1				# initialize hands counter
 loop_read_hands:
 	inc	s1
-	addi	sp, sp, -10
-	mv	s0, a0
-	call	decode_cards
-	sd	a0, 0(sp)
-	addi	a0, s0, 6			# skip to bid
-	call	parse_integer
-	sh	a1, 8(sp)
-	inc	a0				# skip lf
+	addi	sp, sp, -10			# allocate hand space in the stack
+	mv	a1, sp
+	call	decode_hand
 	blt	a0, s11, loop_read_hands
 
 	# sort hands
@@ -50,26 +45,30 @@ loop_winnings:
 	ecall
 
 	# a0: input pointer
-decode_cards:
-	add	sp, sp, -16
+	# a1: storage pointer
+decode_hand:
+	add	sp, sp, -24
 	sd	ra,  0(sp)
 	sd	s0,  8(sp)
+	sd	s1, 16(sp)
 
-	addi	sp, sp, -8			# allocate 64 bits
-	sh	zero, 0(sp)			# start with 16 bits of zeros
+	mv	s0, a0
+	mv	s1, a1
+
+	sh	zero, 0(s1)			# start with 16 bits of zeros
 
 	# load cards in the last 5 bytes
-	addi	a1, sp, 3
+	addi	a1, s1, 3
 	call	read_cards
 
 	# store the hand strength in the 3rd byte
-	addi	a0, sp, 3
+	addi	a0, s1, 3
 	call	get_hand_strength
-	sb	a0, 2(sp)
+	sb	a0, 2(s1)
 
 	# invert bytes order
-	mv	t0, sp
-	addi	t1, sp, 7
+	mv	t0, s1
+	addi	t1, s1, 7
 	.rept	4
 	lb	t2, 0(t0)
 	lb	t3, 0(t1)
@@ -79,12 +78,15 @@ decode_cards:
 	dec	t1
 	.endr
 
-	ld	a0, 0(sp)			# load final 64-bits value
-	addi	sp, sp, 8			# free stack space
+	addi	a0, s0, 6			# skip to bid
+	call	parse_integer
+	sh	a1, 8(s1)			# store bid
+	inc	a0				# skip lf
 
 	ld	ra,  0(sp)
 	ld	s0,  8(sp)
-	add	sp, sp, 16
+	ld	s1, 16(sp)
+	add	sp, sp, 24
 	ret
 	
 
