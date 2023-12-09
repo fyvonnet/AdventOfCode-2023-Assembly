@@ -178,11 +178,6 @@ loop_lcm_end:
 	call	print_int
 
 
-	
-end:
-
-
-
 	li      a7, SYS_EXIT
 	li      a0, EXIT_SUCCESS
 	ecall
@@ -282,17 +277,5 @@ compar_codes:
 	.section .rodata
 
 filename:
-	#.string "inputs/day08-test2"
 	.string "inputs/day08"
 
-zzz:
-	.string	"ZZZ"
-
-
-	.section .data
-
-dirs_start:
-	.zero	8
-
-dirs_curr:
-	.zero	8
