@@ -28,7 +28,7 @@ loop_read_rules:
 	beq	t0, t1, rule_lt
 	li	t1, ASCII_GT
 	beq	t0, t1, rule_gt
-	# not a comparison operator, last rule
+	# not a comparison operator, last rule reached
 	li	s8,  0
 	j	rule_hash
 rule_lt:
@@ -82,7 +82,7 @@ rule_hash:
 
 	inc	a0				# skip '\n'
 
-	# copy rule in a linked list
+	# copy rules in a linked list
 	clr	s8				# previous rule pointer (null for last rule)
 	mv	s10, a0
 loop_link:
@@ -174,6 +174,8 @@ comp_ok:
 
 loop_workflows_end:
 	beqz	s2, skip_add
+
+	# add X/M/A/S values to final sum
 	mv	t0, sp
 	.rept	4
 	lw	t1, 0(t0)
@@ -183,18 +185,157 @@ loop_workflows_end:
 skip_add:
 
 
+	# loop to next part in EOF to reached
 	mv	a0, s10
 	blt	a0, s11, loop_parts
 
 	mv	a0, s9
 	call	print_int
 
-end:
+
+        ######     #    ######  #######     #####
+        #     #   # #   #     #    #       #     #
+        #     #  #   #  #     #    #             #
+        ######  #     # ######     #        #####
+        #       ####### #   #      #       #
+        #       #     # #    #     #       #
+        #       #     # #     #    #       #######
+
+	# start at IN workflow with complete range of X/M/A/S values
+	li	a0, 32
+	call	malloc
+	li	t0, IN_HASH
+	li	t1, 1
+	li	t2, 4000
+	sd	t0,  0(a0)
+	sh	t1,  8(a0)
+	sh	t2, 10(a0)
+	sh	t1, 12(a0)
+	sh	t2, 14(a0)
+	sh	t1, 16(a0)
+	sh	t2, 18(a0)
+	sh	t1, 20(a0)
+	sh	t2, 22(a0)
+	sd	x0, 24(a0)
+
+	mv	s2, a0
+	mv	s3, a0
+
+	clr	s11
+
+	addi	sp, sp, -16
+loop_part2:
+	beqz	s2, loop_part2_end
+	ld	s4,  0(s2)				# load workflow hash
+
+	# copy X/M/A/S ranges to the stack
+	ld	t0,  8(s2)
+	ld	t1, 16(s2)
+	sd	t0,  0(sp)
+	sd	t1,  8(sp)
+
+	mv	a0, s2
+	ld	s2, 24(s2)
+	call	free
+
+	beqz	s4, loop_part2				# part rejected
+	bgtz	s4, apply_rules
+
+	# part accepted, add number of valid combinations to the sum
+	mv	a0, sp
+	call	combinations
+	add	s11, s11, a0
+	j	loop_part2
+
+apply_rules:
+	# load rules list pointer
+	mv	a0, s0
+	mv	a1, s1
+	mv	a2, s4
+	call	binsearch
+	mv	s5, a0
+	
+loop_enqueue:
+	li	a0, 32
+	call	malloc
+
+	ld	t0,  0(sp)
+	ld	t1,  8(sp)
+	sd	t0,  8(a0)
+	sd	t1, 16(a0)
+
+	lb	t0,  1(s5)				# operator
+	lb	t1,  0(s5)				# X/M/A/S index
+	lh	t2,  2(s5)				# comparison value		
+	ld	t3,  4(s5)				# destination workflow hash
+	ld	s5, 12(s5)				# next rule
+
+	slli	t1, t1, 2
+	add	t4, t1, a0
+	add	t4, t4, 8				# pointer to the range on the queue
+	add	t5, t1, sp				# pointer to the range on the stack
+
+	sd	t3,  0(a0)
+	sd	x0, 24(a0)
+
+	bltz	t0, enqueue_lt
+	bgtz	t0, enqueue_gt
+	j	enqueue_next
+
+enqueue_lt:
+	addi	t6, t2, -1
+	sh	t6, 2(t4)
+	sh	t2, 0(t5)
+	j	enqueue_next
+
+enqueue_gt:
+	addi	t6, t2, 1
+	sh	t6, 0(t4)
+	sh	t2, 2(t5)
+
+enqueue_next:
+	beqz	s2, empty_queue
+	sd	a0, 24(s3)
+	j	skip_empty_queue
+empty_queue:
+	mv	s2, a0
+skip_empty_queue:
+	mv	s3, a0
+	bnez	s5, loop_enqueue
+	
+	j	loop_part2
+loop_part2_end:
+
+	
+	mv	a0, s11
+	call	print_int
+	
+	
+        ####### #     # ######
+        #       ##    # #     #
+        #       # #   # #     #
+        #####   #  #  # #     #
+        #       #   # # #     #
+        #       #    ## #     #
+        ####### #     # ######
 
 
 	li      a7, SYS_EXIT
 	li      a0, EXIT_SUCCESS
 	ecall
+
+combinations:
+	li	t0, 1
+	.rept	4
+	lh	t2, 2(a0)
+	lh	t1, 0(a0)
+	sub	t2, t2, t1
+	inc	t2
+	mul	t0, t0, t2
+	addi	a0, a0, 4
+	.endr
+	mv	a0, t0
+	ret
 
 hash:
 	lb	t1, 0(a0)
@@ -255,7 +396,6 @@ compar:
 	ld	t1, 0(a1)
 	sub	a0, t0, t1
 	ret
-	
 	
 
 	.section .rodata
