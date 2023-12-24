@@ -46,29 +46,50 @@ back_lf:
 	bne	t0, s11, loop_load
 
 
-#	sb	zero, 0(a0)
+        ######     #    ######  #######      #
+        #     #   # #   #     #    #        ##
+        #     #  #   #  #     #    #       # #
+        ######  #     # ######     #         #
+        #       ####### #   #      #         #
+        #       #     # #    #     #         #
+        #       #     # #     #    #       #####
+
 
 	mv	s4, s2					# starting X coordinate
 	mv	s5, s3					# starting Y coordinate
 	li	s6, 0b00001111				# allow all directions at start
 	clr	s7					# clear steps count
 	
+	# terminator
+	addi	sp, sp, -16
+	li	t0, -1
+	sh	t0, 0(sp)
 
 loop_count_steps:
 	mul	t0, s5, s1				# index of beginning of row
 	add	t0, t0, s4				# index of square
-	add	t0, t0, s0				# address of square
+	add	t6, t0, s0				# address of square
 
-	lb	t0, 0(t0)				# load character at current coordinates
+	lb	t0, 0(t6)				# load character at current coordinates
+	beqz	t0, loop_count_steps_end
+	sb	zero, 0(t6)
 	la	t1, possible_directions
 loop_search:
 	lb	t2, 0(t1)
 	beq	t2, t0, loop_search_end
-	addi	t1, t1, 2
+	addi	t1, t1, 3
 	j	loop_search
 loop_search_end:
 	lb	t0, 1(t1)				# load possible directions mask
 	and	t0, t0, s6				# apply exclusion mask
+
+	# store angle coordinates in the stack
+	lb	t2, 2(t1)
+	beqz	t2, skip_store
+	addi	sp, sp, -16
+	sh	s4, 0(sp)
+	sh	s5, 2(sp)
+skip_store:
 
 	la	t1, rel_coords
 loop_select_dir:
@@ -84,12 +105,55 @@ loop_select_dir_end:
 	add	s5, s5, t5				# new Y coordinate
 	lb	s6, 2(t1)				# exclusion mask
 	inc	s7
-	bne	s4, s2, loop_count_steps		# loop if new X coordinate != start coordinate
-	bne	s5, s3, loop_count_steps		# loop if new Y coordinate != start coordinate
+	j	loop_count_steps
+loop_count_steps_end:
+
+	addi	sp, sp, -16
+	sh	s2, 0(sp)
+	sh	s3, 2(sp)
 	
 	srli	s7, s7, 1				# farthest distance is half the whole loop length
 
 	mv	a0, s7
+	call	print_int
+
+
+
+        ######     #    ######  #######     #####
+        #     #   # #   #     #    #       #     #
+        #     #  #   #  #     #    #             #
+        ######  #     # ######     #        #####
+        #       ####### #   #      #       #
+        #       #     # #    #     #       #
+        #       #     # #     #    #       #######
+
+	# https://en.wikipedia.org/wiki/Pick%27s_theorem
+	# https://en.wikipedia.org/wiki/Shoelace_formula
+
+
+	clr	s11
+loop_trapezoid:
+	lh	t2, 0(sp)				# x_i+1
+	lh	t3, 2(sp)				# y_i+1
+	addi	sp, sp, 16
+	lh	t0, 0(sp)				# x_i
+	lh	t1, 2(sp)				# y_i
+	bltz	t0, loop_trapezoid_end
+	add	t1, t1, t3				# y_i + y_i+1
+	sub	t0, t0, t2				# x_i - x_i+1
+	mul	t0, t0, t1				# (y_i + y_i+1) * (x_i - x_i+1)
+	add	s11, s11, t0
+	j	loop_trapezoid
+loop_trapezoid_end:
+
+	li	t0, 2
+	div	s11, s11, t0
+	bgez	s11, not_neg
+	neg	s11, s11
+not_neg:
+
+	sub	a0, s11, s7
+	inc	a0
 	call	print_int
 
 	li      a7, SYS_EXIT
@@ -100,7 +164,6 @@ found_start:
 	mv	s2, t5
 	mv	s3, t6
 	li	t2, ASCII_SEVEN
-	#li	t2, 70
 	j	back_start
 
 found_lf:
@@ -112,22 +175,27 @@ found_lf:
 
 filename:
 	.string "inputs/day10"
-	#.string "inputs/day10-test1"
 
 	# 0b0000URDL
 possible_directions:
 	.ascii	"|"
 	.byte	0b00001010
+	.byte	0
 	.ascii	"-"
 	.byte	0b00000101
+	.byte	0
 	.ascii	"L"
 	.byte	0b00001100
+	.byte	1
 	.ascii	"J"
 	.byte	0b00001001
+	.byte	1
 	.ascii	"7"
 	.byte	0b00000011
+	.byte	1
 	.ascii	"F"
 	.byte	0b00000110
+	.byte	1
 	
 	# relative coordinates (X, Y)
 	# masks to exclude origine direction
