@@ -16,10 +16,6 @@
 	.set	NODE_HASH,	25
 	.set	NODE_CYCLE,	33
 
-	#.set	NODE_MD5_1,	25
-	#.set	NODE_MD5_2,	33
-	#.set	NODE_CYCLE,	41
-
 	.section .text
 
 set_new:
@@ -52,31 +48,18 @@ set_new:
 	# a1: string ptr
 	# a2: cycle
 set_insert:
-	#addi	sp, sp, -64
 	addi	sp, sp, -80
 	sd	ra,  0(sp)		
 	sd	s0,  8(sp)		# T
-	#sd	s1, 16(sp)		# z.value
 	sd	s2, 24(sp)		# x
 	sd	s3, 32(sp)		# x
 	sd	s4, 40(sp)		# T.nil
 	sd	s5, 48(sp)		# y
 	sd	s6, 56(sp)
-	sd	s7, 64(sp)
 	sd	s8, 72(sp)
 
 	mv	s0, a0
 	mv	s8, a2
-
-#	addi	sp, sp, -16
-#	mv	a0, a1
-#	mv	a1, sp
-#	call	md5String
-#	ld	s6, 0(sp)
-#	ld	s7, 8(sp)
-#	addi	sp, sp, 16
-
-	li	s7, 0
 
 	li	s6, 5381
 	li	t1, 33
@@ -140,13 +123,11 @@ insert_end_succ:
 insert_end:	
 	ld	ra,  0(sp)
 	ld	s0,  8(sp)
-	#ld	s1, 16(sp)
 	ld	s2, 24(sp)
 	ld	s3, 32(sp)
 	ld	s4, 40(sp)
 	ld	s5, 48(sp)
 	ld	s6, 56(sp)
-	ld	s7, 64(sp)
 	ld	s8, 72(sp)
 	addi	sp, sp, 80
 	ret
