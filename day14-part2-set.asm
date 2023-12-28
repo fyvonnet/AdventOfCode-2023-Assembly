@@ -13,9 +13,12 @@
 	.set	NODE_RIGHT,	 8
 	.set	NODE_P,		16
 	.set	NODE_COLOR,	24
-	.set	NODE_MD5_1,	25
-	.set	NODE_MD5_2,	33
-	.set	NODE_CYCLE,	41
+	.set	NODE_HASH,	25
+	.set	NODE_CYCLE,	33
+
+	#.set	NODE_MD5_1,	25
+	#.set	NODE_MD5_2,	33
+	#.set	NODE_CYCLE,	41
 
 	.section .text
 
@@ -65,13 +68,27 @@ set_insert:
 	mv	s0, a0
 	mv	s8, a2
 
-	addi	sp, sp, -16
-	mv	a0, a1
-	mv	a1, sp
-	call	md5String
-	ld	s6, 0(sp)
-	ld	s7, 8(sp)
-	addi	sp, sp, 16
+#	addi	sp, sp, -16
+#	mv	a0, a1
+#	mv	a1, sp
+#	call	md5String
+#	ld	s6, 0(sp)
+#	ld	s7, 8(sp)
+#	addi	sp, sp, 16
+
+	li	s7, 0
+
+	li	s6, 5381
+	li	t1, 33
+loop_djb2:
+	lb	t0, 0(a1)
+	beqz	t0, loop_djb2_end
+	mul	s6, s6, t1
+	add	s6, s6, t0
+	addi	a1, a1, 1
+	j	loop_djb2
+loop_djb2_end:
+	
 
 	ld	s3, TREE_ROOT(s0)	# x = t.root
 	ld	s4, TREE_NIL(s0)	# load t.nil
@@ -80,14 +97,9 @@ set_insert:
 si_while_loop:
 	beq	s3, s4, si_while_loop_end
 	mv	s5, s3			# y = x
-	ld	t0, NODE_MD5_1(s3)	# x.value
-	mv	t1, s6
-	bne	t0, t1, MD5_1_not_equals
-	ld	t0, NODE_MD5_2(s3)	# x.value
-	mv	t1, s7
-MD5_1_not_equals:
-	blt	t1, t0, move_left
-	bgt	t1, t0, move_right
+	ld	t0, NODE_HASH(s3)	# x.value
+	blt	s6, t0, move_left
+	bgt	s6, t0, move_right
 	lw	a0, NODE_CYCLE(s3)	# value already present, return cycle number
 	j	insert_end
 move_left:
@@ -104,21 +116,15 @@ si_while_loop_end:
 	sd	s5, NODE_P(a0)	# z.p = y
 	li	t0, RED
 	sb	t0, NODE_COLOR(a0)	# z.color = RED
-	sd	s6, NODE_MD5_1(a0)
-	sd	s7, NODE_MD5_2(a0)
+	sd	s6, NODE_HASH(a0)
 	sw	s8, NODE_CYCLE(a0)
 
 	bne	s5, s4, tree_not_empty	# y != T.nil
 	sd	a0, TREE_ROOT(s0)
 	j	insert_end_succ
 tree_not_empty:
-	ld	t0, NODE_MD5_1(s5)	# y.value
-	mv	t1, s6
-	bne	t0, t1, MD5_1_not_equals2
-	ld	t0, NODE_MD5_2(s5)	# y.value
-	mv	t1, s7
-MD5_1_not_equals2:
-	bgt	t1, t0, store_right	# z.value > y.value
+	ld	t0, NODE_HASH(s5)	# y.value
+	bgt	s6, t0, store_right	# z.value > y.value
 	sd	a0, NODE_LEFT(s5)
 	j       insert_end_succ
 store_right:
