@@ -191,7 +191,6 @@ newton:
 	fcvt.d.w ft2, t2
 	li	t0, 1
 	fcvt.d.w ft3, t0				# first guess
-	fmv.d.x	fa1, zero
 newton_loop:
 	fmv.d	ft0, ft3				# new guess is previous average
 	fdiv.d	ft1, fa0, ft0				# quotient
@@ -200,11 +199,9 @@ newton_loop:
 	fadd.d	ft3, ft0, ft1
 	fdiv.d	ft3, ft3, ft2
 
-	fsub.d	ft5, ft0, ft3				# difference between average and guess
-	fge.d	t1, ft5, fa1				# difference negative?
-	bnez	t1, not_neg
-	fneg.d	ft5, ft5
-not_neg:
+	# absolute difference between average and guess
+	fsub.d	ft5, ft0, ft3
+	fabs.d	ft5, ft5
 
 	fgt.d	t1, ft5, ft6				# check if difference is small enough
 	bnez	t1, newton_loop
