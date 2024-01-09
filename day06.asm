@@ -11,6 +11,16 @@ main:
 	mv	s10, a0
 	add	s11, a0, a1
 
+end:
+
+	#li	t0, 0x4045000000000000 
+	#li	t0, 0x40450CCCCCCCCCCD 
+	li	t0, 0x4045733333333333 
+	fmv.d.x	ft0, t0
+	#fcvt.l.d t0, ft0, rdn
+	fcvt.l.d t0, ft0, rup
+	
+
 
         ######     #    ######  #######      #
         #     #   # #   #     #    #        ##
@@ -129,13 +139,11 @@ count_victories:
 
 	fadd.d	fs3, fs1, fs0				# -b + sqrt(delta)
 	fdiv.d	fa0, fs3, fs2				# (-b + sqrt(delta)) / 2a
-	call	ceil
-	fcvt.l.d s0, fa0
+	fcvt.l.d s0, fa0, rup				# convert to integer with ceiling rounding
 
 	fsub.d	fs3, fs1, fs0				# -b - sqrt(delta)
 	fdiv.d	fa0, fs3, fs2				# (-b - sqrt(delta)) / 2a
-	call	floor
-	fcvt.l.d s1, fa0
+	fcvt.l.d s1, fa0, rdn				# convert to integer with floor rounding
 
 	sub	a0, s1, s0
 	inc	a0
