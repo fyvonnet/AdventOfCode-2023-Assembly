@@ -12,7 +12,6 @@ main:
 	add	s11, a0, a1
 
 
-
         ######     #    ######  #######      #
         #     #   # #   #     #    #        ##
         #     #  #   #  #     #    #       # #
@@ -124,9 +123,8 @@ count_victories:
 	mul	t0, a0, a0
 	li	t1, 4
 	mul	t2, s1, t1
-	sub	t0, t0, t2
-	fcvt.d.l fa0, t0				# convert delta from int to double
-	call	sqrt					# square root of delta
+	sub	a0, t0, t2
+	call	newton					# square root of delta
 	fmv.d	fs0, fa0
 
 	fadd.d	fs3, fs1, fs0				# -b + sqrt(delta)
@@ -183,6 +181,38 @@ loop_read_line_end:
 	addi	sp, sp, 16
 
 	ret
+
+	
+newton:
+	fcvt.d.l fa0, a0
+	li	t6, 0x3F50624DD2F1A9FC			# 0.001
+	fmv.d.x	ft6, t6
+	li	t2, 2
+	fcvt.d.w ft2, t2
+	li	t0, 1
+	fcvt.d.w ft3, t0				# first guess
+	fmv.d.x	fa1, zero
+newton_loop:
+	fmv.d	ft0, ft3				# new guess is previous average
+	fdiv.d	ft1, fa0, ft0				# quotient
+
+	#average
+	fadd.d	ft3, ft0, ft1
+	fdiv.d	ft3, ft3, ft2
+
+	fsub.d	ft5, ft0, ft3				# difference between average and guess
+	fge.d	t1, ft5, fa1				# difference negative?
+	bnez	t1, not_neg
+	fneg.d	ft5, ft5
+not_neg:
+
+	fgt.d	t1, ft5, ft6				# check if difference is small enough
+	bnez	t1, newton_loop
+
+	fmv.d	fa0, ft3
+
+	ret
+
 	
 	.section .rodata
 
