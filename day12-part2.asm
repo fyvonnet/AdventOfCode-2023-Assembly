@@ -5,12 +5,9 @@
 
 	.section .text
 
-
 main:
 
-
 	la	s0, input
-
 	clr	s7
 
 loop_read:
@@ -78,8 +75,6 @@ loop_dup:
 
 	mv	s0, a0
 
-#stop_here:
-	
 	la	s8, line
 	la	s9, nums
 	
@@ -88,18 +83,12 @@ loop_dup:
 	clr	a2
 	call	count
 	add	s7, s7, a0
-	#call	print_int
-
-stop_here:
 
 	lb	t0, (s0)
 	bnez	t0, loop_read
-	
 
 	mv	a0, s7
 	call	print_int
-
-	
 
 	li	a7, SYS_EXIT
 	li	a0, EXIT_SUCCESS
@@ -158,7 +147,7 @@ count.jmp3:
 	mv	s3, a1
 	j	count_ret
 not_in_cache:
-	mv	s4, a1
+	mv	s4, a1			# value pointer
 
 	clr	s3
 
@@ -222,7 +211,6 @@ count_ret:
 	.section .data
 
 input:
-	#.incbin "inputs/day12-test"
 	.incbin "inputs/day12"
 	.byte	0
 
@@ -233,6 +221,6 @@ input:
 cache_space:
 	.zero	3*1024*1024
 
-line: .zero	128
-nums: .zero	128
+line:	.zero	128
+nums:	.zero	128
 
