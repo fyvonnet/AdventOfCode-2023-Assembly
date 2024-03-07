@@ -1,13 +1,18 @@
-	.global main
+	.global	main
 
 	.include "macros.inc"
 	.include "constants.inc"
 
 	.set	IN_HASH, 0x696E
+	.set	CHUNK_COUNT, 1024
+	.set	CHUNK_SIZE, 32
 
 	.section .text
 
 main:
+
+	call	pool_init
+	
 	la      a0, filename
 	call    map_input_file
 	mv	s10, a0
@@ -202,8 +207,7 @@ skip_add:
         #       #     # #     #    #       #######
 
 	# start at IN workflow with complete range of X/M/A/S values
-	li	a0, 32
-	call	malloc
+	call	chunk_alloc
 	li	t0, IN_HASH
 	li	t1, 1
 	li	t2, 4000
@@ -236,7 +240,7 @@ loop_part2:
 
 	mv	a0, s2
 	ld	s2, 24(s2)
-	call	free
+	call	chunk_free
 
 	beqz	s4, loop_part2				# part rejected
 	bgtz	s4, apply_rules
@@ -256,8 +260,9 @@ apply_rules:
 	mv	s5, a0
 	
 loop_enqueue:
-	li	a0, 32
-	call	malloc
+	call	chunk_alloc
+
+stop_here:
 
 	ld	t0,  0(sp)
 	ld	t1,  8(sp)
@@ -396,11 +401,43 @@ compar:
 	ld	t1, 0(a1)
 	sub	a0, t0, t1
 	ret
+
+pool_init:
+	la	t0, pool
+	li	t1, CHUNK_COUNT
+	addi	t2, t0, 8
+	sd	t2, (t0)
+loop_pool_init:
+	mv	t0, t2
+	addi	t2, t0, CHUNK_SIZE
+	sd	t2, (t0)
+	dec	t1
+	bnez	t1, loop_pool_init
+	ret
+
+chunk_free:
+	la	t0, pool
+	ld	t1, (t0)
+	sd	a0, (t0)
+	sd	t1, (a0)
+	ret
+
+chunk_alloc:
+	la	t0, pool
+	ld	a0, (t0)
+	ld	t1, (a0)
+	sd	t1, (t0)
+	ret
 	
+
+	.section .bss
+	.align	8
+pool:	.zero	8 + (CHUNK_SIZE * CHUNK_COUNT)
+arena:	.zero	1024 * 1024
 
 	.section .rodata
 
 filename:
 	.string "inputs/day19"
-	.string "inputs/day19-test"
+	#.string "inputs/day19-test"
 
