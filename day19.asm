@@ -1,4 +1,4 @@
-	.global	main
+	.global	_start
 
 	.include "macros.inc"
 	.include "constants.inc"
@@ -9,7 +9,7 @@
 
 	.section .text
 
-main:
+_start:
 
 	call	pool_init
 	
@@ -89,13 +89,7 @@ rule_hash:
 	bnez	s8, loop_read_rules		# no comparison operator, no more rules
 
 	inc	a0				# skip '\n'
-
 	inc	s1				# increment workflows counter
-	#addi	sp, sp, -16
-	#sd	s7, 0(sp)
-	#sd	s8, 8(sp)
-
-	#mv	a0, s10
 
 	lb	t0, 0(a0)
 	li	t1, ASCII_LF			# loop until empty line reached
@@ -110,8 +104,6 @@ rule_hash:
 	li	a2, 80
 	la	a3, compar
 	call	quicksort
-
-stop_here:
 
 	mv	a0, s10				# restore input pointer
 	inc	a0				# skip empty input line
@@ -141,8 +133,6 @@ loop_workflows:
 	mv	a1, s1
 	mv	a2, s2
 	call	binsearch
-	#ld	s2, 8(a0)			# load default worflow / result		
-	#mv	s2, a0
 
 loop_rules:
 	lb	s3, 0(a0)			# load x/m/a/s index
@@ -151,7 +141,6 @@ loop_rules:
 	lw	s3, 0(s3)			# load x/m/a/s value
 	lb	s4, 1(a0)			# load difference operator, or 0 for last (default) rule
 	lh	s5, 2(a0)			# load comparison value
-	#addi	a0, a0, 16
 	ld	s2, 8(a0)			# load default worflow / result		
 	bltz	s4, comp_lt
 	bgtz	s4, comp_gt
@@ -259,7 +248,6 @@ loop_enqueue:
 	lb	t1,  0(s5)				# X/M/A/S index
 	lh	t2,  2(s5)				# comparison value		
 	ld	t3,  8(s5)				# destination workflow hash
-	#ld	s5, 12(s5)				# next rule
 	addi	s5, s5, 16				# next rule
 
 	slli	t1, t1, 2
@@ -293,8 +281,7 @@ empty_queue:
 	mv	s2, a0
 skip_empty_queue:
 	mv	s3, a0
-	#bnez	s5, loop_enqueue
-	bnez	t0, loop_enqueue
+	bnez	t0, loop_enqueue			# no operator, last rule reached
 	
 	j	loop_part2
 loop_part2_end:
@@ -332,7 +319,6 @@ combinations:
 
 hash:
 	lb	t1, 0(a0)
-	#li	t0, 'A'
 	li	t0, ASCII_CAP_A
 	beq	t0, t1, hash_accepted
 	li	t0, ASCII_CAP_R
@@ -375,7 +361,6 @@ binsearch_loop:
         lw      t6, 0(t5)                               # load middle element
         blt     t6, a2, binsearch_right
         bgt     t6, a2, binsearch_left
-	#ld	a0, 8(t5)				# load pointer to first rule
 	addi	a0, t5, 8				# pointer to first rule
         ret
 binsearch_right:
@@ -423,10 +408,8 @@ chunk_alloc:
 	.section .bss
 	.align	8
 pool:	.zero	8 + (CHUNK_SIZE * CHUNK_COUNT)
-#arena:	.zero	1024 * 1024
 
 	.section .rodata
 filename:
 	.string "inputs/day19"
-	#.string "inputs/day19-test"
 
