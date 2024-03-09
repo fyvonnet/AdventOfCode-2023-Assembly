@@ -21,13 +21,14 @@ main:
 	clr	s1				# workflows counter
 
 loop_input:
+	addi	sp, sp, -80			# allocate space for hash and up to 4 rules
 	call	hash
-	mv	s7, a1
+	sd	a1, 0(sp)
 	inc	a0				# skip opening brace
 	clr	s9				# rules counter
+	add	s7, sp, 8			# rule pointer
 loop_read_rules:
 	inc	s9				# increment rules counter
-	addi	sp, sp, -16
 	lb	t0, 1(a0)			# read comparison operator
 	li	t1, ASCII_LT
 	beq	t0, t1, rule_lt
@@ -67,62 +68,50 @@ rule_a:
 rule_s:
 	li	t0, 3
 rule_next:
-	sb	t0, 0(sp)			# store x/m/a/s
+	sb	t0, 0(s7)			# store x/m/a/s
 
 	addi	a0, a0, 2
 
 	call	parse_integer
-	sh	a1, 2(sp)
+	sh	a1, 2(s7)
 
 	inc	a0				# skip ':'
 
 rule_hash:
 	call	hash
-	sd	a1, 4(sp)
+	sd	a1, 8(s7)
 
-	sb	s8 , 1(sp)
+	sb	s8, 1(s7)			# store comparison operator
 	inc	a0				# skip ',' or '}'
 
-	bnez	s8, loop_read_rules
+	addi	s7, s7, 16
+
+	bnez	s8, loop_read_rules		# no comparison operator, no more rules
 
 	inc	a0				# skip '\n'
 
-	# copy rules in a linked list
-	clr	s8				# previous rule pointer (null for last rule)
-	mv	s10, a0
-loop_link:
-	li	a0, 20
-	call	malloc
-
-	ld	t0, 0(sp)
-	sd	t0, 0(a0)
-	ld	t0, 8(sp)
-	sd	t0, 8(a0)
-	
-	sd	s8, 12(a0)
-	mv	s8, a0
-	addi	sp, sp, 16
-	dec	s9
-	bnez	s9, loop_link
-	
 	inc	s1				# increment workflows counter
-	addi	sp, sp, -16
-	sd	s7, 0(sp)
-	sd	s8, 8(sp)
+	#addi	sp, sp, -16
+	#sd	s7, 0(sp)
+	#sd	s8, 8(sp)
 
-	mv	a0, s10
+	#mv	a0, s10
 
 	lb	t0, 0(a0)
 	li	t1, ASCII_LF			# loop until empty line reached
 	bne	t0, t1, loop_input
 
+	mv	s10, a0
+
 	mv	s0, sp				# save workflows vector base pointer
 
 	mv	a0, s0
 	mv	a1, s1
-	li	a2, 16
+	li	a2, 80
 	la	a3, compar
 	call	quicksort
+
+stop_here:
 
 	mv	a0, s10				# restore input pointer
 	inc	a0				# skip empty input line
@@ -130,7 +119,7 @@ loop_link:
 	clr	s9				# clear sum
 
 loop_parts:
-	# Parse the X/M/A/S values
+	# Parse the X/M/A/S values and store them on the stack
 	addi	sp, sp, -16
 	mv	s10, sp
 	.rept 4
@@ -141,7 +130,7 @@ loop_parts:
 	.endr
 
 	add	a0, a0, 2			# skip "}\n"
-	mv	s10, a0
+	mv	s10, a0				# save input pointer
 	
 	li	s2, IN_HASH			# start at IN worflow
 loop_workflows:
@@ -152,30 +141,29 @@ loop_workflows:
 	mv	a1, s1
 	mv	a2, s2
 	call	binsearch
-	mv	s2, a0
+	#ld	s2, 8(a0)			# load default worflow / result		
+	#mv	s2, a0
 
 loop_rules:
-	lb	s3, 0(s2)			# load x/m/a/s index
+	lb	s3, 0(a0)			# load x/m/a/s index
 	slli	s3, s3, 2
-	add	s3, s3, sp
-	lw	s3, 0(s3)
-	lb	s4, 1(s2)			# load difference operator, or 0 for last (default) rule
-	lh	s5, 2(s2)			# load comparison value
+	add	s3, s3, sp			# pointer to the corresponding value
+	lw	s3, 0(s3)			# load x/m/a/s value
+	lb	s4, 1(a0)			# load difference operator, or 0 for last (default) rule
+	lh	s5, 2(a0)			# load comparison value
+	#addi	a0, a0, 16
+	ld	s2, 8(a0)			# load default worflow / result		
 	bltz	s4, comp_lt
 	bgtz	s4, comp_gt
-	ld	s2, 4(s2)			# load default worflow / result		
 	j	loop_workflows
 comp_lt:
-	blt	s3, s5, comp_ok
-	ld	s2, 12(s2)
+	blt	s3, s5, loop_workflows
+	addi	a0, a0, 16
 	j	loop_rules
 comp_gt:
-	bgt	s3, s5, comp_ok
-	ld	s2, 12(s2)
+	bgt	s3, s5, loop_workflows
+	addi	a0, a0, 16
 	j	loop_rules
-comp_ok:
-	ld	s2, 4(s2)
-	j	loop_workflows
 
 loop_workflows_end:
 	beqz	s2, skip_add
@@ -262,8 +250,6 @@ apply_rules:
 loop_enqueue:
 	call	chunk_alloc
 
-stop_here:
-
 	ld	t0,  0(sp)
 	ld	t1,  8(sp)
 	sd	t0,  8(a0)
@@ -272,8 +258,9 @@ stop_here:
 	lb	t0,  1(s5)				# operator
 	lb	t1,  0(s5)				# X/M/A/S index
 	lh	t2,  2(s5)				# comparison value		
-	ld	t3,  4(s5)				# destination workflow hash
-	ld	s5, 12(s5)				# next rule
+	ld	t3,  8(s5)				# destination workflow hash
+	#ld	s5, 12(s5)				# next rule
+	addi	s5, s5, 16				# next rule
 
 	slli	t1, t1, 2
 	add	t4, t1, a0
@@ -306,7 +293,8 @@ empty_queue:
 	mv	s2, a0
 skip_empty_queue:
 	mv	s3, a0
-	bnez	s5, loop_enqueue
+	#bnez	s5, loop_enqueue
+	bnez	t0, loop_enqueue
 	
 	j	loop_part2
 loop_part2_end:
@@ -344,6 +332,7 @@ combinations:
 
 hash:
 	lb	t1, 0(a0)
+	#li	t0, 'A'
 	li	t0, ASCII_CAP_A
 	beq	t0, t1, hash_accepted
 	li	t0, ASCII_CAP_R
@@ -375,9 +364,9 @@ hash_rejected:
         # a1: elements count
         # a2: element searched
 binsearch:
-        li      t0, 0                                   # index of first element
+        clr	t0					# index of first element
         addi    t2, a1, -1                              # index of last element
-        li      t3, 16                                  # length of node
+        li      t3, 80                                  # length of node
 binsearch_loop:
         add     t1, t0, t2
         srli    t1, t1, 1                               # middle index
@@ -386,7 +375,8 @@ binsearch_loop:
         lw      t6, 0(t5)                               # load middle element
         blt     t6, a2, binsearch_right
         bgt     t6, a2, binsearch_left
-	ld	a0, 8(t5)				# load pointer to first rule
+	#ld	a0, 8(t5)				# load pointer to first rule
+	addi	a0, t5, 8				# pointer to first rule
         ret
 binsearch_right:
         addi    t0, t1, 1
@@ -433,10 +423,9 @@ chunk_alloc:
 	.section .bss
 	.align	8
 pool:	.zero	8 + (CHUNK_SIZE * CHUNK_COUNT)
-arena:	.zero	1024 * 1024
+#arena:	.zero	1024 * 1024
 
 	.section .rodata
-
 filename:
 	.string "inputs/day19"
 	#.string "inputs/day19-test"
