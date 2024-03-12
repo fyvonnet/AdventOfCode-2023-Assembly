@@ -11,6 +11,9 @@
 
 _start:
 
+	la	a0, pool
+	li	a1, CHUNK_COUNT
+	li	a2, CHUNK_SIZE
 	call	pool_init
 	
 	la      a0, filename
@@ -190,6 +193,7 @@ skip_add:
         #       #     # #     #    #       #######
 
 	# start at IN workflow with complete range of X/M/A/S values
+	la	a0, pool
 	call	chunk_alloc
 	la	t0, first_hash
 	li	t1, 1
@@ -221,8 +225,9 @@ loop_part2:
 	ld	t0, 16(s2)
 	sd	t0,  8(sp)
 
-	mv	a0, s2
+	mv	a1, s2
 	ld	s2, 24(s2)				# point head to next queue element
+	la	a0, pool
 	call	chunk_free
 
 	ld	t0, 0(s4)
@@ -246,6 +251,7 @@ apply_rules:
 	addi	s5, a0, 8				# skip to rules
 	
 loop_enqueue:
+	la	a0, pool
 	call	chunk_alloc
 
 	ld	t0,  0(sp)
@@ -361,34 +367,6 @@ compar:
 	sub	a0, t0, t1
 	ret
 
-pool_init:
-	la	t0, pool
-	li	t1, CHUNK_COUNT
-	addi	t2, t0, 8
-	sd	t2, (t0)
-loop_pool_init:
-	mv	t0, t2
-	addi	t2, t0, CHUNK_SIZE
-	sd	t2, (t0)
-	dec	t1
-	bnez	t1, loop_pool_init
-	ret
-
-chunk_free:
-	la	t0, pool
-	ld	t1, (t0)
-	sd	a0, (t0)
-	sd	t1, (a0)
-	ret
-
-chunk_alloc:
-	la	t0, pool
-	ld	a0, (t0)
-	ld	t1, (a0)
-	sd	t1, (t0)
-	ret
-	
-
 	.section .bss
 	.align	8
 pool:	.zero	8 + (CHUNK_SIZE * CHUNK_COUNT)
@@ -396,6 +374,7 @@ pool:	.zero	8 + (CHUNK_SIZE * CHUNK_COUNT)
 	.section .rodata
 filename:
 	.string "inputs/day19"
+	.align	8
 first_hash:
 	.dword	IN_HASH
 
