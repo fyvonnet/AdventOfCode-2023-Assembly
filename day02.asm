@@ -1,11 +1,11 @@
-	.global main
+	.global _start
 
 	.include "macros.inc"
 	.include "constants.inc"
 
 	.section .text
 
-main:
+_start:
 	la      a0, filename
 	call    map_input_file
 	add	s11, a0, a1
