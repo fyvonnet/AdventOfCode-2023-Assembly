@@ -9,7 +9,7 @@ _start:
 	# sort letter-digits for binary search
 	la	a0, ldigits
 	li	a1, 9				# 9 elements
-	li	a2, 11				# elements are 11 bytes long
+	li	a2, 16				# elements are 11 bytes long
 	la	a3, compar
 	call	quicksort
 
@@ -112,13 +112,12 @@ rnd_ldigit:
 	li	t0, 0				# L
 	li	t2, 8				# R
 	la	t3, ldigits			# address of the ldigit vector
-	li	t4, 11				# length of a ldigit vector element
 	lh	t5, 0(s1)			# load the candidate ldigit
 rnd_ldigit_loop:
 	bgt	t0, t2, rnd_loop		# not a letter digit
 	add	t1, t0, t2			# m = L + R
 	srli	t1, t1, 1			# m = m / 2
-	mul	s6, t1, t4			# m offset
+	slli	s6, t1, 4			# x16 to get offset
 	add	s6, s6, t3			# m address
 	lh	s7, 0(s6)			# m value
 	blt	s7, t5, search_right
@@ -173,38 +172,48 @@ ldigits:
 	.ascii	"on"	# 16-bits value for the first two letters
 	.byte	1	# corresponding value
 	.quad	one	# pointer to model string
+	.zero	5	# padding
 
 	.ascii	"tw"
 	.byte	2
 	.quad	two
+	.zero	5
+
 
 	.ascii	"th"
 	.byte	3
 	.quad	three
+	.zero	5
 
 	.ascii	"fo"
 	.byte	4
 	.quad	four
+	.zero	5
 
 	.ascii 	"fi"
 	.byte	5
 	.quad	five
+	.zero	5
 
 	.ascii	"si"
 	.byte	6
 	.quad	six
+	.zero	5
 
 	.ascii	"se"
 	.byte	7
 	.quad	seven
+	.zero	5
 
 	.ascii	"ei"
 	.byte	8
 	.quad	eight
+	.zero	5
 
 	.ascii	"ni"
 	.byte	9
 	.quad	nine
+	.zero	5
 
 	.section .rodata
 
