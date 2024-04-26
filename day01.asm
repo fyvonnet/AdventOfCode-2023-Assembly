@@ -1,11 +1,11 @@
-	.global main
+	.global _start
 
 	.include "macros.inc"
 	.include "constants.inc"
 
 	.section .text
 
-main:
+_start:
 	# sort letter-digits for binary search
 	la	a0, ldigits
 	li	a1, 9				# 9 elements
