@@ -1,27 +1,55 @@
-	.global main
-
 	.include "macros.inc"
 	.include "constants.inc"
 
-	.section .text
+	.bss
+	.balign	8
+	.type	arena, @object
+	.set	ARENA_SIZE,	3*1024*1024
+	.size	arena, ARENA_SIZE
+arena:	.zero	ARENA_SIZE
 
-main:
+
+	.data
+	.type	input, @object
+input:	.incbin "inputs/day12"
+	.byte	0
+	.size	input, .-input
+
+
+	.text
+	.balign	8
+
+	.globl _start
+	.type _start, @function
+_start:
 
 	la	s0, input
 	clr	s7
 
-loop_read:
-	la	a0, cache_space
-	call	cache_init
+	addi	sp, sp, -128
+	mv	s8, sp
+	addi	sp, sp, -128
+	mv	s9, sp
 
-	la	t1, line
+loop_read:
+	la	a0, arena
+	li	a1, ARENA_SIZE
+	call	arena_init
+
+	la	a0, compar
+	la	a1, alloc
+	clr	a2
+	call	redblacktree_init
+	mv	s6, a0
+
+	mv	t1, s8
 	li	t2, ASCII_SPACE
 	clr	s10
-	li	s9, 5
-	mv	s8, s0
+	li	s5, 5
+	mv	s4, s0
 	li	t6, ASCII_QUESTION
 loop_copy_line_multiple:
-	mv	s0, s8
+	mv	s0, s4
 loop_copy_line:
 	lb	t0, (s0)
 	sb	t0, (t1)
@@ -30,17 +58,17 @@ loop_copy_line:
 	inc	s10
 	bne	t0, t2, loop_copy_line
 	dec	t1
-	#li	t6, 63
 	sb	t6, (t1)
 	inc	t1
 	dec	s10
-	dec	s9
-	bnez	s9, loop_copy_line_multiple
+	dec	s5
+	bnez	s5, loop_copy_line_multiple
 	dec	t1
 	sb	zero, (t1)
 	addi	s10, s10, 4			# add question marks
 
-	la	s1, nums
+	#la	s1, nums
+	mv	s1, s9
 	mv	a0, s0
 	li	s3, ASCII_LF
 	clr	s11
@@ -55,7 +83,8 @@ loop_copy_nums:
 
 	li	t0, 4
 loop_duplicate_nums:
-	la	s2, nums
+	#la	s2, nums
+	mv	s2, s9
 	mv	t3, s11
 loop_dup:
 	lb	t1, (s2)
@@ -75,9 +104,9 @@ loop_dup:
 
 	mv	s0, a0
 
-	la	s8, line
-	la	s9, nums
-	
+	#la	s4, line
+	#la	s9, nums
+
 	clr	a0
 	clr	a1
 	clr	a2
@@ -93,19 +122,76 @@ loop_dup:
 	li	a7, SYS_EXIT
 	li	a0, EXIT_SUCCESS
 	ecall
-	
+	.size	_start, .-_start
 	
 
+
+
+	# a0: cache
+	# a1: i
+	# a2: n
+	# a3: b
+	.type	cache_query, @function
+cache_query:
+	addi	sp, sp, -32
+	sd	ra,  0(sp)
+	sd	s0,  8(sp)
+	sd	s1, 16(sp)
+
+	mv	s0, a0
+
+	clr	s1
+	or	s1, s1, a1
+	slli	s1, s1, 16
+	or	s1, s1, a2
+	slli	s1, s1, 16
+	or	s1, s1, a3
+
+	la	a0, arena
+	li 	a1, 16
+	call	arena_alloc
+	sd	s1, 0(a0)
+	sd	x0, 8(a0)
+	mv	s1, a0
+
+	mv	a0, s0
+	mv	a1, s1
+	call	redblacktree_insert
+
+	beqz	a0, cache_new
+	mv	s0, a0
+
+	la	a0, arena
+	mv	a1, s1
+	call	arena_free
+
+	li	a0, 1
+	ld	a1, 8(s0)
+	j	cache_query_end
+
+cache_new:
+	li	a0, 0
+	addi	a1, s1, 8
+	
+cache_query_end:
+	ld	ra,  0(sp)
+	ld	s0,  8(sp)
+	ld	s1, 16(sp)
+	addi	sp, sp, 32
+	ret
+	.size	cache_query, .-cache_query
 
 	# s0 : i
 	# s1 : n
 	# s2 : b
 	# s3 : count
 	# s4 : value pointer
+	# s6 : tree
 	# s8 : line
 	# s9 : nums
 	# s10 : len_line
 	# s11 : len_nums
+	.type	count, @function
 count:
 	addi	sp, sp, -48
 	sd	ra,  0(sp)
@@ -138,17 +224,19 @@ count.jmp2:
 	j	count_ret
 count.jmp3:
 
-	la	a0, cache_space
+	mv	a0, s6
 	mv	a1, s0
 	mv	a2, s1
 	mv	a3, s2
 	call	cache_query
 	beqz	a0, not_in_cache
 	mv	s3, a1
-	j	count_ret
-not_in_cache:
-	mv	s4, a1			# value pointer
 
+	j	count_ret
+	
+not_in_cache:
+
+	mv	s4, a1
 	clr	s3
 
 	add	t0, s8, s0		# line[i]
@@ -206,21 +294,26 @@ count_ret:
 	ld	s4, 40(sp)
 	addi	sp, sp, 48
 	ret
+	.size	count, .-count
+
+	.type	compar, @function
+compar:
+	ld	t0, 0(a0)
+	ld	t1, 0(a1)
+	sub	a0, t0, t1
+	ret
+	.size	compar, .-compar
 
 
-	.section .data
-
-input:
-	.incbin "inputs/day12"
-	.byte	0
-
-
-	.section .bss
-
-	.align 8
-cache_space:
-	.zero	3*1024*1024
-
-line:	.zero	128
-nums:	.zero	128
-
+	.type	alloc, @function
+alloc:
+	addi	sp, sp, -16
+	sd	ra,  0(sp)
+	mv	a1, a0
+	la	a0, arena
+	call	arena_alloc
+	ld	ra,  0(sp)
+	addi	sp, sp, 16
+	ret
+	.size	alloc, .-alloc
+#
