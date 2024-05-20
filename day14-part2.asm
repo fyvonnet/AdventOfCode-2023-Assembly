@@ -1,5 +1,3 @@
-	.global main
-
 	.include "macros.inc"
 	.include "constants.inc"
 
@@ -7,9 +5,20 @@
 	.set	CUBE, ASCII_HASH
 	.set	EMPTY, ASCII_DOT
 
-	.section .text
+	.bss
+	.balign 8
+	.type	arena, @object
+	.set	ARENA_SIZE, 16*1024
+	.size	arena, ARENA_SIZE
+arena:	.zero	ARENA_SIZE
 
-main:
+
+
+	.text
+
+
+	.global _start
+_start:
 	la      a0, filename
 	call    map_input_file
 	mv	s0, a0
@@ -42,9 +51,17 @@ lf_found:
 	sb	zero, 0(t0)				# string terminator
 	mv	s0, sp
 
-	call	set_new
+	la	a0, arena
+	li	a1, ARENA_SIZE
+	call	arena_init
+
+	la	a0, compar
+	la	a1, alloc
+	clr	a2
+	call	redblacktree_init
 	mv	s10, a0
 
+	# insert the initial mapo in the set
 	mv	a0, s10
 	mv	a1, s0
 	clr	a2
@@ -225,6 +242,77 @@ load_not_round:
 	bnez	t1, loop_load_rows
 	mv	a0, t0
 	ret
+
+
+	# a0: tree
+	# a1: map
+	# a2: cycle
+set_insert:	
+	addi	sp, sp, -64
+	sd	s0,  0(sp)
+	sd	s1,  8(sp)
+	sd	s2, 16(sp)
+	sd	ra, 24(sp)
+
+	mv	s0, a0
+	mv	s1, a1
+	mv	s2, a2
+	
+	la	a0, 16
+	call	alloc
+
+	li      t6, 5381
+	li      t1, 33
+loop_djb2:
+	lb      t0, (s1)
+	beqz    t0, loop_djb2_end
+	mul     t6, t6, t1
+	add     t6, t6, t0
+	inc	s1
+	j       loop_djb2
+loop_djb2_end:
+
+	sd	t6, 0(a0)
+	sd	s2, 8(a0)
+
+	mv	a1, a0
+	mv	a0, s0
+	call	redblacktree_insert
+
+	bnez 	a0, set_insert_found
+	li	a0, -1
+	j	set_insert_end
+
+set_insert_found:
+	ld	a0, 8(a0)
+
+set_insert_end:
+	ld	s0,  0(sp)
+	ld	s1,  8(sp)
+	ld	s2, 16(sp)
+	ld	ra, 24(sp)
+	addi	sp, sp, 64
+	ret
+
+compar:
+	ld	t0, 0(a0)
+	ld	t1, 0(a1)
+	sub	a0, t0, t1
+	ret
+
+alloc:
+	addi	sp, sp, -16
+	sd	ra,  0(sp)
+	mv	a1, a0
+	la	a0, arena
+	call	arena_alloc
+	ld	ra,  0(sp)
+	addi	sp, sp, 16
+	ret
+	
+	
+
+
 	
 	.section .rodata
 
