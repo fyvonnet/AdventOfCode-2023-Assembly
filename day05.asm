@@ -1,4 +1,4 @@
-	.global main
+	.global _start
 
 	.include "macros.inc"
 	.include "constants.inc"
@@ -9,7 +9,10 @@
 
 	.section .text
 
-main:
+_start:
+	la	a0, arena
+	call	arena_init
+
 	la      a0, filename
 	call    map_input_file
 	add	s11, a0, a1
@@ -179,10 +182,11 @@ loop_read_numbers:
 loop_read_numbers_end:
 
 	# allocate heap space, 64 bits / number
-	li	a0, 8
-	mul	a0, a0, s0
-	addi	a0, a0, 24			# space for the terminator
-	call	malloc
+	la	a0, arena
+	li	a1, 8
+	mul	a1, a1, s0
+	addi	a1, a1, 24			# space for the terminator
+	call	arena_alloc
 
 	# move pointer to end of heap space
 	li	t1, 8
@@ -229,3 +233,6 @@ filename:
 	.string "inputs/day05"
 	#.string "inputs/day05-test"
 
+
+	.section .bss
+arena:	.zero	4096
