@@ -51,13 +51,13 @@ loop_invert:
 	blt	t0, t6, loop_invert
 
 	# nodes vector terminator
-	addi	sp, sp, -12
+	addi	sp, sp, -16
 	sw	zero, 0(sp)
 
 	clr	s2					# clear nodes counter
 loop_read_nodes:
 	inc	s2					# increment counter
-	addi	sp, sp, -12
+	addi	sp, sp, -16
 	call	read_letters
 	sw	a1, 0(sp)
 	addi	a0, a0, 4				# skip " = ("
@@ -73,7 +73,7 @@ loop_read_nodes:
 	# sort nodes
 	mv	a0, s1
 	mv	a1, s2
-	li	a2, 12
+	li	a2, 16
 	la	a3, compar_codes
 	call	quicksort
 
@@ -98,7 +98,7 @@ loop_filter:
 	sw	t0, 0(sp)
 	inc	t6
 skip_store:
-	addi	t4, t4, 12
+	addi	t4, t4, 16
 	j	loop_filter
 loop_filter_end:
 
@@ -112,9 +112,6 @@ loop_a_nodes:
 	mv	s4, s1					# pointer to AAA node (first node)
 	clr	s5					# clear the steps counter
 
-	#lw	s3, 0(sp)
-	#li	s6, 0x00414141
-	#li	s6, 0x005a5a5a
 loop_search:
 	andi	t0, s6, 0b11111111
 	li	t1, ASCII_CAP_Z
@@ -122,10 +119,17 @@ loop_search:
 
 	inc	s5
 
+	addi	sp, sp, -16
+	sw	s6, 0(sp)
+
 	mv	a0, s1
 	mv	a1, s2
-	mv	a2, s6
+	li	a2, 16
+	la	a3, compar_codes
+	mv	a4, sp
 	call	binsearch
+
+	addi	sp, sp, 16
 
 	lb	t0, 0(s3)				# load direction
 	bgez	t0, direction_ok			# check if direction is positive
@@ -177,7 +181,6 @@ loop_lcm_end:
 	mv	a0, s7
 	call	print_int
 
-
 	li      a7, SYS_EXIT
 	li      a0, EXIT_SUCCESS
 	ecall
@@ -212,51 +215,6 @@ gcd_end:
 	addi	sp, sp, 24
 	ret
 
-	# a0: base nodes vector pointer
-	# a1: elements count
-	# a2: current node
-	# a3: direction
-next_node:
-	addi	sp, sp, -16
-	sd	ra,  0(sp)
-	sd	s3,  8(sp)
-
-	slli	s3, a3, 2
-	call	binsearch
-	addi	a0, a0, 4
-	add	a0, a0, s3
-	lw	a0, 0(a0)
-
-	ld	ra,  0(sp)
-	ld	s3,  8(sp)
-	addi	sp, sp, 16
-	ret
-	
-
-	# a0: base pointer
-	# a1: elements count
-	# a2: element searched
-binsearch:
-	li	t0, 0					# index of first element
-	addi	t2, a1, -1				# index of last element
-	li	t3, 12					# length of node
-binsearch_loop:
-	add	t1, t0, t2
-	srli	t1, t1, 1				# middle index
-	mul	t5, t1, t3
-	add	t5, t5, a0				# pointer to middle element
-	lw	t6, 0(t5)				# load middle element
-	blt	t6, a2, binsearch_right
-	bgt	t6, a2, binsearch_left
-	mv	a0, t5					# return address of element
-	ret
-binsearch_right:
-	addi	t0, t1, 1
-	j	binsearch_loop
-binsearch_left:
-	addi	t2, t1, -1
-	j	binsearch_loop
-	
 
 read_letters:
 	clr	a1
@@ -268,10 +226,11 @@ read_letters:
 	.endr
 	ret
 
+
 compar_codes:
-	lw	a0, 0(a0)
-	lw	a1, 0(a1)
-	sub	a0, a0, a1
+	lw	t0, 0(a0)
+	lw	t1, 0(a1)
+	sub	a0, t0, t1
 	ret
 
 	.section .rodata
