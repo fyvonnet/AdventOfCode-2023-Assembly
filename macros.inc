@@ -1,10 +1,10 @@
         
-	.macro  INC reg
-        addi \reg, \reg, 1
+	.macro  INC reg, val=1
+        addi \reg, \reg, \val
         .endm
 
-        .macro  DEC reg
-        addi \reg, \reg, -1
+        .macro  DEC reg, val=1
+        addi \reg, \reg, \val
         .endm
 
 	.macro	CLR reg
