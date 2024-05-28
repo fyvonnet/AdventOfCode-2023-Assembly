@@ -1,11 +1,11 @@
-	.global main
+	.global _start
 
 	.include "macros.inc"
 	.include "constants.inc"
 
 	.section .text
 
-main:
+_start:
 	la      a0, filename
 	call    map_input_file
 	mv	s10, a0
@@ -13,11 +13,8 @@ main:
 
 end:
 
-	#li	t0, 0x4045000000000000 
-	#li	t0, 0x40450CCCCCCCCCCD 
 	li	t0, 0x4045733333333333 
 	fmv.d.x	ft0, t0
-	#fcvt.l.d t0, ft0, rdn
 	fcvt.l.d t0, ft0, rup
 	
 
