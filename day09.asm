@@ -11,8 +11,8 @@ main:
 	add	s11, a0, a1
 
 	# terminator
-	addi	sp, sp, -8
-	sd	zero, 0(sp)
+	addi	sp, sp, -16
+	sd	zero, (sp)
 
 	# clear sums
 	clr	s8
@@ -22,10 +22,10 @@ loop_lines:
 
 	# read one input line as the first sequence
 	call	read_line
-	addi	sp, sp, -8
+	addi	sp, sp, -16
 	mv	s10, a0				# save input pointer
 	mv	s1, a1				# copy counter
-	sd	a2, 0(sp)			# store vector pointer in stack
+	sd	a2, (sp)			# store vector pointer in stack
 
 
 	# generate differences sequences until all-zero sequence reached
@@ -35,8 +35,8 @@ loop_diffs:
 	mv	a1, s1
 	call	differences			# get difference vector pointer
 	beqz	a0, loop_diffs_end		# end loop if null pointer received
-	addi	sp, sp, -8			# allocate stack space
-	sd	a0, 0(sp)			# store pointer on the stack
+	addi	sp, sp, -16			# allocate stack space
+	sd	a0, (sp)			# store pointer on the stack
 	j	loop_diffs
 loop_diffs_end:
 
@@ -46,7 +46,7 @@ loop_diffs_end:
 
 	# extrapolate values from the last to the first sequence
 loop_extra:
-	ld	a2, 0(sp)			# load vector pointer
+	ld	a2, (sp)			# load vector pointer
 	beqz	a2, loop_extra_end		# null pointer reached, end loop
 	
 	# extrapolate value at end of vector (part 1)
@@ -60,9 +60,9 @@ loop_extra:
 	lw	t3, 0(a2)			# load first value of the vector
 	sub	s3, t3, s3			# extrapolate new value
 
-	ld	a0, 0(sp)			# load first vector pointer
+	ld	a0, (sp)			# load first vector pointer
 	call	free				# free vector
-	addi	sp, sp, 8			# free stack space
+	addi	sp, sp, 16			# free stack space
 	inc	s1
 	j	loop_extra
 loop_extra_end:
@@ -87,7 +87,7 @@ loop_extra_end:
 
 
 differences:
-	addi	sp, sp, -24
+	addi	sp, sp, -32
 	sd	ra,  0(sp)
 	sd	s0,  8(sp)
 	sd	s1, 16(sp)
@@ -122,7 +122,7 @@ not_all_zero:
 	ld	ra,  0(sp)
 	ld	s0,  8(sp)
 	ld	s1, 16(sp)
-	addi	sp, sp, 24
+	addi	sp, sp, 32
 
 	ret
 
@@ -132,23 +132,12 @@ not_all_zero:
 alloc_words:
 	addi	sp, sp, -16
 	sd	ra, 0(sp)
-	sd	s0, 8(sp)
-
-	mv	s0, sp				# save stack pointer
-
-        # align stack to 16 bytes (RISC-V standard) to avoid bus error when calling malloc
-        li      t0, 16
-        remu    t1, sp, t0
-        sub     sp, sp, t1
 
 	li	t0, 4
 	mul	a0, a0, t0
 	call	malloc
 
-	mv	sp, s0				# restore stack pointer
-
 	ld	ra, 0(sp)
-	ld	s0, 8(sp)
 	addi	sp, sp, 16
 	
 	ret
@@ -170,9 +159,9 @@ loop_read_line:
 	inc	a0
 	inc	s2
 	call	parse_integer
-	addi	sp, sp, -4
-	sw	a1, 0(sp)
-	lb	t0, 0(a0)
+	addi	sp, sp, -16
+	sw	a1, (sp)
+	lb	t0, (a0)
 	li	t1, ASCII_LF
 	bne	t0, t1, loop_read_line
 
@@ -190,9 +179,9 @@ loop_read_line:
 	addi	t0, t0, -4
 	mv	t1, s2				# initialize countdown
 loop_copy:
-	lw	t2, 0(sp)
-	sw	t2, 0(t0)
-	addi	sp, sp, 4
+	lw	t2, (sp)
+	sw	t2, (t0)
+	addi	sp, sp, 16
 	addi	t0, t0, -4
 	dec	t1
 	bnez	t1, loop_copy
