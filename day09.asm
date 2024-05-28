@@ -1,11 +1,23 @@
-	.global main
-
 	.include "macros.inc"
 	.include "constants.inc"
 
-	.section .text
+	.bss
+	.balign	8
+	.type	arena, @object
+	.set	ARENA_SIZE, 1024
+arena:	.zero	ARENA_SIZE
+	.size	arena, ARENA_SIZE
 
-main:
+
+	.text
+
+
+	.globl	_start
+_start:
+	la	a0, arena
+	li	a1, ARENA_SIZE
+	call	arena_init
+
 	la      a0, filename
 	call    map_input_file
 	add	s11, a0, a1
@@ -60,8 +72,9 @@ loop_extra:
 	lw	t3, 0(a2)			# load first value of the vector
 	sub	s3, t3, s3			# extrapolate new value
 
-	ld	a0, (sp)			# load first vector pointer
-	call	free				# free vector
+	la	a0, arena
+	ld	a1, (sp)
+	call	arena_free
 	addi	sp, sp, 16			# free stack space
 	inc	s1
 	j	loop_extra
@@ -95,8 +108,9 @@ differences:
 	mv	s0, a0
 	mv	s1, a1
 
-	slli	a0, a1, 2
-	call	malloc
+	la	a0, arena
+	slli	a1, a1, 2
+	call	arena_alloc
 	mv	t3, a0
 
 	li	a1, 1				# all-zero flag
@@ -115,7 +129,9 @@ is_zero:
 	bnez	s1, loop_diff
 
 	beqz	a1, not_all_zero
-	call	free
+	mv	a1, a0
+	la	a0, arena
+	call	arena_free
 	clr	a0				# return null pointer when all differences are null
 not_all_zero:
 	
@@ -153,8 +169,9 @@ loop_read_line:
 	bne	t0, t1, loop_read_line
 
 	mv	s0, a0				# save input pointer
-	slli	a0, s2, 2
-	call	malloc
+	la	a0, arena
+	slli	a1, s2, 2
+	call	arena_alloc
 	mv	a2, a0				# copy allocated memory pointer 
 	mv	a0, s0				# restore input pointer
 
