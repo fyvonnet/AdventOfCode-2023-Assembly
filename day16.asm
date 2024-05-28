@@ -1,5 +1,3 @@
-	.global main
-
 	.include "macros.inc"
 	.include "constants.inc"
 
@@ -8,9 +6,21 @@
 	.set	WEST, 2
 	.set	NORTH, 3
 
-	.section .text
+	.bss
+	.balign	8
+	.type	queue, @object
+	.set	ELEM_SZ, 8
+	.set	ELEM_NB, 100
+	.set	QUEUE_SIZE, 16 + (ELEM_SZ * ELEM_NB)
+queue:	.zero	QUEUE_SIZE
+	.size	queue, QUEUE_SIZE
 
-main:
+
+	.text
+
+
+	.globl	_start
+_start:
 	la      a0, filename
 	call    map_input_file
 	mv	s10, a0
@@ -18,9 +28,14 @@ main:
 
 	mv	s2, a1
 
-	mv	a0, a1
-	call	malloc
-	mv	s0, a0
+	# allocate stack space for map
+	sub	sp, sp, a1
+	mv	s0, sp
+
+	# align stack
+	li	t0, 16
+	remu	t1, sp, t0
+	sub	sp, sp, t1
 
 	mv	a0, s10
 	call	line_length
@@ -173,8 +188,6 @@ count_energized:
 	sd	ra,  0(sp)
 	sd	s0,  8(sp)
 	sd	s1, 16(sp)
-	sd	s2, 24(sp)
-	sd	s3, 32(sp)
 	sd	s4, 40(sp)
 	sd	s5, 48(sp)
 	sd	s6, 56(sp)
@@ -188,15 +201,16 @@ count_energized:
 	mv	s6, a5
 
 	# initialize queue
-	li	a0, 13
-	call	malloc
+	la	a0, queue
+	li	a1, ELEM_NB
+	li	a2, ELEM_SZ
+	call	queue_init
+
+	la	a0, queue
+	call	queue_push
 	sh	s4, 0(a0)
 	sh	s5, 2(a0)
 	sb	s6, 4(a0)
-	sd	zero, 5(a0)
-
-	mv	s2, a0				# queue head
-	mv	s3, a0				# queue tail
 
 	# terminator
 	addi	sp, sp, -16
@@ -204,15 +218,15 @@ count_energized:
 	sb	t0, 4(sp)
 
 loop_beam:
-	beqz	s2, loop_beam_end
+	la	a0, queue
+	call	queue_empty
+	bnez	a0, loop_beam_end
 
-	mv	a0, s2
-	lh	s4, 0(s2)
-	lh	s5, 2(s2)
-	lb	s6, 4(s2)
-	ld	s2, 5(s2)
-
-	call	free
+	la	a0, queue
+	call	queue_pop
+	lh	s4, 0(a0)
+	lh	s5, 2(a0)
+	lb	s6, 4(a0)
 
 	mv	a0, s0
 	mv	a1, s4
@@ -257,8 +271,6 @@ loop_count_end:
 	ld	ra,  0(sp)
 	ld	s0,  8(sp)
 	ld	s1, 16(sp)
-	ld	s2, 24(sp)
-	ld	s3, 32(sp)
 	ld	s4, 40(sp)
 	ld	s5, 48(sp)
 	ld	s6, 56(sp)
@@ -364,19 +376,11 @@ enqueue:
 	bnez	t2, enqueue
 
 	# add new element to queue
-	li	a0, 13
-	call	malloc
+	la	a0, queue
+	call	queue_push
 	sh	s4, 0(a0)
 	sh	s5, 2(a0)
 	sb	s6, 4(a0)
-	sd	zero, 5(a0)
-	beqz	s2, empty_queue
-	sd	a0, 5(s3)
-	mv	s3, a0
-	j	enqueue
-empty_queue:
-	mv	s2, a0
-	mv	s3, a0
 	j	enqueue
 
 
