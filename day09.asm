@@ -95,8 +95,8 @@ differences:
 	mv	s0, a0
 	mv	s1, a1
 
-	mv	a0, a1
-	call	alloc_words
+	slli	a0, a1, 2
+	call	malloc
 	mv	t3, a0
 
 	li	a1, 1				# all-zero flag
@@ -129,19 +129,6 @@ not_all_zero:
 	
 
 
-alloc_words:
-	addi	sp, sp, -16
-	sd	ra, 0(sp)
-
-	li	t0, 4
-	mul	a0, a0, t0
-	call	malloc
-
-	ld	ra, 0(sp)
-	addi	sp, sp, 16
-	
-	ret
-
 
 	# rea
 
@@ -166,8 +153,8 @@ loop_read_line:
 	bne	t0, t1, loop_read_line
 
 	mv	s0, a0				# save input pointer
-	mv	a0, s2
-	call	alloc_words
+	slli	a0, s2, 2
+	call	malloc
 	mv	a2, a0				# copy allocated memory pointer 
 	mv	a0, s0				# restore input pointer
 
