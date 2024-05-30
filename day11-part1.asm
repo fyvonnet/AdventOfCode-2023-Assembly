@@ -1,11 +1,11 @@
-	.global main
+	.global _start
 
 	.include "macros.inc"
 	.include "constants.inc"
 
 	.section .text
 
-main:
+_start:
 	la      a0, filename
 	call    map_input_file
 	add	s11, a0, a1
@@ -14,13 +14,18 @@ main:
 	call	line_length
 	mv	s1, a0
 
-	slli	a0, s1, 1
-	call	malloc
-	mv	s3, a0
+	slli	t0, s1, 1
+	sub	sp, sp, t0
+	mv	s3, sp
 
-	slli	a0, s1, 1
-	call	malloc
-	mv	s4, a0
+	slli	t0, s1, 1
+	sub	sp, sp, t0
+	mv	s4, sp
+
+	# align stack
+	li	t0, 0b1111
+	not	t0, t0
+	and	sp, sp, t0
 
 	# terminator
 	addi	sp, sp, -16
@@ -172,6 +177,12 @@ end:
 	li      a7, SYS_EXIT
 	li      a0, EXIT_SUCCESS
 	ecall
+
+abs:
+	bgez	a0, not_neg
+	neg	a0, a0
+not_neg:
+	ret
 
 	.section .rodata
 
