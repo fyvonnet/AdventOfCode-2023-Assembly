@@ -1,11 +1,20 @@
-	.global main
-
 	.include "macros.inc"
 	.include "constants.inc"
 
-	.section .text
 
-main:
+	.bss
+	.balign	8
+	.type	arena, @object
+	.set	ARENA_SIZE, 64
+arena:	.zero	ARENA_SIZE
+	.size	arena, ARENA_SIZE
+
+
+	.text
+
+
+	.globl _start
+_start:
 	la      a0, filename
 	call    map_input_file
 	mv	s0, a0
@@ -14,6 +23,10 @@ main:
 	clr	s10
 
 loop:
+	la	a0, arena
+	li	a1, ARENA_SIZE
+	call	arena_init
+
 	mv	a0, s0
 	call	decode_springs
 	mv	s1, a0
@@ -190,8 +203,9 @@ loop_read_groups:
 	bne	t0, t1, loop_read_groups
 	mv	s2, a0
 
-	addi	a0, s0, 2			# 2 counters
-	call	malloc
+	la	a0, arena
+	addi	a1, s0, 2			# 2 counters
+	call	arena_alloc
 
 	# store counters
 	sb	s0, 0(a0)
@@ -248,8 +262,9 @@ loop_decode_springs:
 	beq	t0, a4, quest_found
 loop_decode_springs_end:
 
-	add	a0, s0, 3			# spring conditions + 3 counters
-	call	malloc
+	la	a0, arena
+	add	a1, s0, 3			# spring conditions + 3 counters
+	call	arena_alloc
 
 	sb	s0, 0(a0)
 	sb	s1, 1(a0)
