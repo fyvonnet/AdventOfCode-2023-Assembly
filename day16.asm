@@ -219,11 +219,8 @@ count_energized:
 
 loop_beam:
 	la	a0, queue
-	call	queue_empty
-	bnez	a0, loop_beam_end
-
-	la	a0, queue
 	call	queue_pop
+	beqz	a0, loop_beam_end
 	lh	s4, 0(a0)
 	lh	s5, 2(a0)
 	lb	s6, 4(a0)
