@@ -14,8 +14,7 @@
 	.set	MOD_TYPE, 	24
 	.set	MOD_MEM, 	25
 
-	#.set	LIST_SIZE, 	16
-	.set	LIST_SIZE_LONG,	24
+	.set	LIST_SIZE,	24
 	.set	LIST_VAL, 	 0
 	.set	LIST_NEXT, 	 8
 	.set	LIST_LABEL,	16
@@ -47,15 +46,18 @@ _start:
 	mv	s10, a0
 	add	s11, a0, a1
 
-	mv	s0, s10
-
 	la	a0, arena
 	li	a1, ARENA_SIZE
 	call	arena_init
+
+	la	a0, queue
+	li	a1, QUEUE_ELEMCNT
+	li	a2, QUEUE_ELEMSZ
+	call	queue_init
 	
 	clr	s1
 
-	# load allo modules from inputs into the stack
+	# load all modules from inputs into the stack
 	mv	a0, s10
 loop_pass1:
 	inc	s1
@@ -81,7 +83,7 @@ loop_pass1:
 	# copy modules from the stack to the modules vector
 
 	mv	s2, s0			# mods array
-	mv	s3, s1			# counter
+	mv	s3, s1			# countdown
 loop_store_mods:
 	ld	s5, TEMP_PTR(sp)
 	sd	s5, MOD_PTR(s2)
@@ -92,17 +94,7 @@ loop_store_mods:
 	li	t0, TYPE_FLIPFLOP
 	clr	s6
 
-	bne	s5, t0, not_flipflop
-	# conjunction components have only one input
-	la	a0, arena
-	li	a1, 8
-	call	arena_alloc
-	mv	s6, a0
-	#sd	s4, (s6)
-	sd	zero, (s6)
-not_flipflop:
-
-	sd	s6, MOD_INS(s2)
+	sd	zero, MOD_INS(s2)
 	sb	zero, MOD_MEM(s2)
 
 	addi	s2, s2, MOD_SIZE
@@ -111,7 +103,7 @@ not_flipflop:
 	bnez	s3, loop_store_mods
 
 
-	# sort modules for the binary search
+	# sort modules by labels
 	mv	a0, s0
 	mv	a1, s1
 	li	a2, MOD_SIZE
@@ -207,20 +199,20 @@ loop_copy:
 	dec	s9
 	bnez	s9, loop_origs
 
+
+
+
+	# initialize counters for low and high pulses
 	addi	sp, sp, -16
 	mv	s5, sp
 	sd	zero, 0(s5)
 	sd	zero, 8(s5)
 
-	li	s9, 1000
+	li	s9, 1000			# presses countdown
 
 loop_presses:
 
-	la	a0, queue
-	li	a1, QUEUE_ELEMCNT
-	li	a2, QUEUE_ELEMSZ
-	call	queue_init
-
+	# initialize the queue with the broadcaster
 	la	a0, queue
 	call	queue_push
 	sd	s8, (a0)
@@ -234,9 +226,10 @@ loop_onepress:
 
 	la	a0, queue
 	call	queue_pop
-	beqz	a0, loop_onepress_end
-	ld	s0, (a0)
-	ld	s11, 8(a0)
+	beqz	a0, loop_onepress_end		# end loop when queue empty
+	ld	s0, (a0)			# load module pointer
+	beqz	s0, loop_onepress		# skip unregistered module
+	ld	s11, 8(a0)			# load pulse (flipflip only)
 
 	lb	t0, MOD_TYPE(s0)
 	li	t1, TYPE_BCAST
@@ -251,9 +244,8 @@ loop_onepress:
 	li	a7, 93
 	ecall
 
-	# brodcaster emits low pulse from the button
 emit_bcast:
-	li	s1, 0
+	li	s1, 0					# brodcaster emits low pulse from the button
 	j	emit
 
 emit_conj:
@@ -261,9 +253,9 @@ emit_conj:
 loop_emit_conj:
 	ld	t0, LIST_VAL(s2)
 	ld	t1, (t0)
-	beqz	t1, emit_conj_hi
+	beqz	t1, emit_conj_hi			# emit a high signal if one low input is detected
 	ld	s2, LIST_NEXT(s2)
-	bnez	s2, loop_emit_conj
+	bnez	s2, loop_emit_conj			# emit a low signal if all inputs are high
 	li	s1, 0
 	j	emit
 emit_conj_hi:
@@ -271,10 +263,10 @@ emit_conj_hi:
 	j	emit
 
 emit_flipflop:
-	bgtz	s11, loop_onepress			# ignore if high pulse is received
-	lb	s1, MOD_MEM(s0)
-	xori	s1, s1, 1
-	sb	s1, MOD_MEM(s0)
+	bgtz	s11, loop_onepress			# ignore module if high pulse is received
+	lb	s1, MOD_MEM(s0)				# load memory content
+	xori	s1, s1, 1				# invert memory content
+	sb	s1, MOD_MEM(s0)				# save back memory content
 	j	emit
 
 emit:
@@ -293,16 +285,14 @@ skip_emit:
 	ld	s2, LIST_NEXT(s2)
 	bnez	s2, loop_emit
 
-enqueue:
+	# enqueue destination modules
 	ld	s2, MOD_OUTS(s0)
 loop_enqueue:
 	ld	s3, LIST_LABEL(s2)
-	beqz	s3, skip_enqueue
 	la	a0, queue
 	call	queue_push
 	sd	s3, (a0)
 	sd	s1, 8(a0)
-skip_enqueue:
 	ld	s2, LIST_NEXT(s2)
 	bnez	s2, loop_enqueue
 
@@ -342,7 +332,7 @@ push_signal:
 	mv	s2, a2
 
 	la	a0, arena
-	li	a1, LIST_SIZE_LONG
+	li	a1, LIST_SIZE
 	call	arena_alloc
 
 	ld	t0, (s0)
