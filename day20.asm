@@ -17,24 +17,33 @@
 	.set	LIST_SIZE,	24
 	.set	LIST_VAL, 	 0
 	.set	LIST_NEXT, 	 8
-	.set	LIST_LABEL,	16
+	.set	LIST_MOD,	16
 
 	.set	TYPE_CONJ, 	'&'
 	.set	TYPE_FLIPFLOP,	'%'
 	.set	TYPE_BCAST, 	'b'
+
+	.set	RX_LABEL, 	0x7278
+
 
 	.bss
 	.balign	8
 	.type	arena, @object
 	.set	ARENA_SIZE, 8*1024	
 	.size	arena, ARENA_SIZE
-arena:	.zero	ARENA_SIZE
+arena:	.space	ARENA_SIZE
 	.set	QUEUE_ELEMCNT, 50
 	.set	QUEUE_ELEMSZ, 16
-	.set	QUEUE_SIZE, 16 + (QUEUE_ELEMCNT * QUEUE_ELEMSZ)
+	.set	QUEUE_SIZE, 40 + (QUEUE_ELEMCNT * QUEUE_ELEMSZ)
 	.type	queue, @object
 	.size	queue, QUEUE_SIZE
-queue:	.zero	QUEUE_SIZE
+queue:	.space	QUEUE_SIZE
+
+
+	.data
+button:	.string	"Button pressed\n"
+reached:.string	" => Module reached\n"
+
 
 	.text
 
@@ -85,14 +94,12 @@ loop_pass1:
 	mv	s2, s0			# mods array
 	mv	s3, s1			# countdown
 loop_store_mods:
-	ld	s5, TEMP_PTR(sp)
-	sd	s5, MOD_PTR(s2)
-	ld	s5, TEMP_LABEL(sp)
-	sd	s5, MOD_LABEL(s2)
-	ld	s5, TEMP_TYPE(sp)
-	sb	s5, MOD_TYPE(s2)
-	li	t0, TYPE_FLIPFLOP
-	clr	s6
+	ld	t0, TEMP_PTR(sp)
+	sd	t0, MOD_PTR(s2)
+	ld	t0, TEMP_LABEL(sp)
+	sd	t0, MOD_LABEL(s2)
+	ld	t0, TEMP_TYPE(sp)
+	sb	t0, MOD_TYPE(s2)
 
 	sd	zero, MOD_INS(s2)
 	sb	zero, MOD_MEM(s2)
@@ -134,8 +141,13 @@ loop_dests:
 	inc	s6
 	call	parse_label
 
-	sd	a1, 0(s5)
-	sd	a0, 8(s5)
+	li	t0, RX_LABEL
+	bne	a1, t0, not_rx
+	mv	s7, s2				# save rx's predecessor
+not_rx:
+
+	sd	a1, 0(s5)			# store destination label
+	sd	a0, 8(s5)			# save input pointer
 
 	mv	a0, s0
 	mv	a1, s1
@@ -161,7 +173,8 @@ loop_dests:
 
 	addi	a0, s3, MOD_INS
 	mv	a1, s4
-	clr	a2
+	#clr	a2
+	mv	a2, s2
 	call	push_signal
 
 add_to_orig:
@@ -203,19 +216,108 @@ loop_copy:
 
 
 	# initialize counters for low and high pulses
-	addi	sp, sp, -16
-	mv	s5, sp
-	sd	zero, 0(s5)
-	sd	zero, 8(s5)
+	#addi	sp, sp, -16
+	sd	zero, 0(sp)
+	sd	zero, 8(sp)
 
 	li	s9, 1000			# presses countdown
 
 loop_presses:
-
 	# initialize the queue with the broadcaster
 	la	a0, queue
 	call	queue_push
 	sd	s8, (a0)
+
+	mv	a0, sp
+	clr	a1
+	#li	a1, 0x0000000000012ad8
+	#li	a1, 0x0000000000012ab8
+	#li	a1, 0x0000000000012a18
+	#li	a1, 0x0000000000012998
+	call	button_press
+
+	dec	s9
+	bnez	s9, loop_presses
+
+
+	ld	t0, 0(sp)
+	ld	t1, 8(sp)
+	mul	a0, t0, t1
+	call	print_int
+	addi	sp, sp, 16
+
+	ld	t0, MOD_INS(s7)
+	ld	t0, LIST_NEXT(t0)
+	ld	t0, LIST_NEXT(t0)
+	ld	t0, LIST_NEXT(t0)
+	#ld	t1, LIST_VAL(t0)
+	#ld	t2, (t1)
+	ld	s3, LIST_MOD(t0)
+	#ld	t2, MOD_VAL(t1)
+
+	ld      s7, MOD_INS(s7)
+
+	li	s6, 1
+
+loop_ins:
+	ld	s3, LIST_MOD(s7)
+
+	mv	a0, s0
+	mv	a1, s1
+	call	reset
+
+	la	a0, queue
+	li	a1, QUEUE_ELEMCNT
+	li	a2, QUEUE_ELEMSZ
+	call	queue_init
+	
+	clr	s9
+
+loop_until_high:
+	inc	s9
+
+	la	a0, queue
+	call	queue_push
+	sd	s8, (a0)
+
+	mv	a0, sp
+	mv	a1, s3
+	call    button_press
+
+	beqz	a0, loop_until_high
+	mul	s6, s6, s9
+	ld	s7, LIST_NEXT(s7)
+
+	bnez	s7, loop_ins
+	
+end:
+
+	mv	a0, s6
+	call	print_int
+	
+
+	li      a0, EXIT_SUCCESS
+	li      a7, SYS_EXIT
+	ecall
+	.size	_start, .-_start
+
+
+	.type	button_press, @function
+button_press:
+	addi	sp, sp, -72
+	sd	s2,   0(sp)
+	sd	s3,   8(sp)
+	sd	s5,  16(sp)
+	sd	s6,  24(sp)
+	sd	s7,  32(sp)
+	sd	s10, 40(sp)
+	sd	s11, 48(sp)
+	sd	ra,  56(sp)
+	sd	s1,  64(sp)
+	
+
+	mv	s5, a0
+	mv	s1, a1
 
 	# add one low pulse from pressing the button
 	ld	t0, 0(s5)
@@ -226,12 +328,13 @@ loop_onepress:
 
 	la	a0, queue
 	call	queue_pop
+	clr	a1
 	beqz	a0, loop_onepress_end		# end loop when queue empty
-	ld	s0, (a0)			# load module pointer
-	beqz	s0, loop_onepress		# skip unregistered module
+	ld	s7, 0(a0)			# load module pointer
+	beqz	s7, loop_onepress		# skip unregistered module
 	ld	s11, 8(a0)			# load pulse (flipflip only)
 
-	lb	t0, MOD_TYPE(s0)
+	lb	t0, MOD_TYPE(s7)
 	li	t1, TYPE_BCAST
 	beq	t0, t1, emit_bcast
 	li	t1, TYPE_CONJ
@@ -245,33 +348,40 @@ loop_onepress:
 	ecall
 
 emit_bcast:
-	li	s1, 0					# brodcaster emits low pulse from the button
+	li	s6, 0					# brodcaster emits low pulse from the button
 	j	emit
 
 emit_conj:
-	ld	s2, MOD_INS(s0)
+	ld	s2, MOD_INS(s7)
 loop_emit_conj:
 	ld	t0, LIST_VAL(s2)
 	ld	t1, (t0)
 	beqz	t1, emit_conj_hi			# emit a high signal if one low input is detected
 	ld	s2, LIST_NEXT(s2)
 	bnez	s2, loop_emit_conj			# emit a low signal if all inputs are high
-	li	s1, 0
+	li	s6, 0
 	j	emit
 emit_conj_hi:
-	li	s1, 1
+	# we got a conjunction module emiting a high signal
+	# check if it's the target module 
+	beqz	s1, skip_target
+	bne	s1, s7, skip_target
+	li	a1, 1
+	j	loop_onepress_end	
+skip_target:
+	li	s6, 1
 	j	emit
 
 emit_flipflop:
 	bgtz	s11, loop_onepress			# ignore module if high pulse is received
-	lb	s1, MOD_MEM(s0)				# load memory content
-	xori	s1, s1, 1				# invert memory content
-	sb	s1, MOD_MEM(s0)				# save back memory content
+	lb	s6, MOD_MEM(s7)				# load memory content
+	xori	s6, s6, 1				# invert memory content
+	sb	s6, MOD_MEM(s7)				# save back memory content
 	j	emit
 
 emit:
-	ld	s2, MOD_OUTS(s0)
-	slli	t0, s1, 3
+	ld	s2, MOD_OUTS(s7)
+	slli	t0, s6, 3
 	add	s10, s5, t0
 loop_emit:
 	ld	t0, (s10)
@@ -280,19 +390,19 @@ loop_emit:
 	
 	ld	t0, LIST_VAL(s2)
 	beqz	t0, skip_emit
-	sd	s1, (t0)
+	sd	s6, (t0)
 skip_emit:
 	ld	s2, LIST_NEXT(s2)
 	bnez	s2, loop_emit
 
 	# enqueue destination modules
-	ld	s2, MOD_OUTS(s0)
+	ld	s2, MOD_OUTS(s7)
 loop_enqueue:
-	ld	s3, LIST_LABEL(s2)
+	ld	s3, LIST_MOD(s2)
 	la	a0, queue
 	call	queue_push
 	sd	s3, (a0)
-	sd	s1, 8(a0)
+	sd	s6, 8(a0)
 	ld	s2, LIST_NEXT(s2)
 	bnez	s2, loop_enqueue
 
@@ -300,20 +410,41 @@ loop_enqueue:
 	j	loop_onepress
 	
 loop_onepress_end:
+	mv	a0, a1
+	ld	s2,   0(sp)
+	ld	s3,   8(sp)
+	ld	s5,  16(sp)
+	ld	s6,  24(sp)
+	ld	s7,  32(sp)
+	ld	s10, 40(sp)
+	ld	s11, 48(sp)
+	ld	ra,  56(sp)
+	ld	s1,  64(sp)
+	addi	sp, sp, 72
+	ret
+	.size	button_press, .-button_press
 
-	dec	s9
-	bnez	s9, loop_presses
 
 
-	ld	t0, 0(s5)
-	ld	t1, 8(s5)
-	mul	a0, t0, t1
-	call	print_int
-	
-	li      a0, EXIT_SUCCESS
-	li      a7, SYS_EXIT
-	ecall
-	.size	_start, .-_start
+
+	.type	reset, @function
+reset:
+	sb	zero, MOD_MEM(a0)
+	ld	t0, MOD_OUTS(a0)
+loop_reset_out:
+	beqz	t0, loop_reset_out_end
+	ld	t1, LIST_VAL(t0)
+	beqz	t1, skip_zero
+	sd	zero, (t1)
+skip_zero:
+	ld	t0, LIST_NEXT(t0)
+	j	loop_reset_out
+loop_reset_out_end:
+	addi	a0, a0, MOD_SIZE
+	dec	a1
+	bnez	a1, reset
+	ret
+	.size	reset, .-reset
 
 
 	# a0: ptr to ptr to link head
@@ -338,7 +469,7 @@ push_signal:
 	ld	t0, (s0)
 	sd	t0, LIST_NEXT(a0)
 	sd	s1, LIST_VAL(a0)
-	sd	s2, LIST_LABEL(a0)
+	sd	s2, LIST_MOD(a0)
 	sd	a0, (s0)
 
 	ld	ra,  0(sp)
@@ -366,6 +497,7 @@ loop_parse_label:
 	j	loop_parse_label
 parse_label_end:
 	ret
+	.size	parse_label, .-parse_label
 	
 
 
