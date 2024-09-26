@@ -75,12 +75,10 @@ loop_lines:
 	lb	s1, (s10)
 	inc	s10
 	mv	a0, s10
+	mv	a1, s0
 	call	parse_label
+	mv	s2, a1
 	addi	s10, a0, 3			# skip " ->"
-
-	mv	a0, s0
-	call	get_mod_ptr
-	mv	s2, a0
 
 	sb	s1, MOD_TYPE(s2)
 	
@@ -94,12 +92,10 @@ loop_dests:
 	inc	s10				# skip space
 	inc	s6
 	mv	a0, s10
+	mv	a1, s0
 	call	parse_label
+	mv	s3, a1
 	mv	s10, a0				# destination label
-
-	mv	a0, s0
-	call	get_mod_ptr
-	mv	s3, a0
 
 
 	# conjunction module
@@ -172,11 +168,11 @@ loop_presses:
 
 
 	la	a0, rx_str
+	mv	a1, s0
 	call	parse_label
 	mv	a0, s0
-	call	get_mod_ptr
 
-	ld	t0, MOD_INS(a0)
+	ld	t0, MOD_INS(a1)
 	ld	t0, LIST_MOD(t0)
 	ld	s7, MOD_INS(t0)
 	
@@ -225,7 +221,7 @@ loop_until_high:
 
 
 	# a0: tree
-	# a1: label
+	# a1: label "hash"
 	.type	get_mod_ptr, @function
 get_mod_ptr:
 	addi	sp, sp, -32
@@ -258,6 +254,11 @@ get_mod_ptr:
 	.size	get_mod_ptr, .-get_mod_ptr
 
 
+	# run the circuit from button press to completion or specified module reached
+	# a0: pointer to signals counters
+	# a1: pointer to end module, or NULL to run to completion
+	# return:
+	# a0: last signal
 	.type	button_press, @function
 button_press:
 	addi	sp, sp, -72
@@ -410,7 +411,9 @@ alloc:
 
 
 
-
+	# Called from redblacktree_inorder, reset one module
+	# a0: pointer to module
+	# a1: ignored
 	.type	reset, @function
 reset:
 	sb	zero, MOD_MEM(a0)
@@ -428,6 +431,8 @@ loop_reset_out_end:
 	.size	reset, .-reset
 
 
+
+	# push signal to a linked list
 	# a0: ptr to ptr to link head
 	# a1: ptr to new signal
 	# a2: destination label
@@ -462,9 +467,21 @@ push_signal:
 	.size	push_signal, .-push_signal
 
 
-
+	# Parse a module name and returns pointer to the corresponding module
+	# a0: pointer to input file
+	# a1: modules tree
+	# Return:
+	# a0: modified pointer to input file
+	# a1: pointer to module
 	.type	parse_label, @function
 parse_label:
+	addi	sp, sp, -64
+	sd	ra,  0(sp)
+	sd	s0,  8(sp)
+	sd	s1, 16(sp)
+
+	mv	s1, a1
+
 	li	t0, 'a'
 	li	t1, 'z'
 	clr	a1
@@ -477,6 +494,17 @@ loop_parse_label:
 	add	a1, a1, t2
 	j	loop_parse_label
 parse_label_end:
+	mv	s0, a0
+
+	mv	a0, s1
+	call	get_mod_ptr
+	mv	a1, a0
+	mv	a0, s0
+	
+	ld	ra,  0(sp)
+	ld	s0,  8(sp)
+	ld	s1, 16(sp)
+	addi	sp, sp, 64
 	ret
 	.size	parse_label, .-parse_label
 	
