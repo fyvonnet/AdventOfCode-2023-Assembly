@@ -1,6 +1,8 @@
 	.include "macros.inc"
 	.include "constants.inc"
 
+
+
 	.set	TEMP_SIZE, 	32
 	.set	TEMP_LABEL, 	 0
 	.set	TEMP_TYPE, 	 8
@@ -10,7 +12,6 @@
 	.set	MOD_LABEL,	 0
 	.set	MOD_INS,	 8
 	.set	MOD_OUTS,	16
-	.set	MOD_PTR,	16
 	.set	MOD_TYPE, 	24
 	.set	MOD_MEM, 	25
 
@@ -23,15 +24,18 @@
 	.set	TYPE_FLIPFLOP,	'%'
 	.set	TYPE_BCAST, 	'b'
 
-	.set	RX_LABEL, 	0x7278
 
 
 	.bss
+
+
 	.balign	8
+
 	.type	arena, @object
-	.set	ARENA_SIZE, 8*1024	
+	.set	ARENA_SIZE, 16*1024	
 	.size	arena, ARENA_SIZE
 arena:	.space	ARENA_SIZE
+
 	.set	QUEUE_ELEMCNT, 50
 	.set	QUEUE_ELEMSZ, 16
 	.set	QUEUE_SIZE, 40 + (QUEUE_ELEMCNT * QUEUE_ELEMSZ)
@@ -40,12 +44,9 @@ arena:	.space	ARENA_SIZE
 queue:	.space	QUEUE_SIZE
 
 
-	.data
-button:	.string	"Button pressed\n"
-reached:.string	" => Module reached\n"
-
 
 	.text
+
 
 	.global _start
 	.type	_start, @function
@@ -63,106 +64,42 @@ _start:
 	li	a1, QUEUE_ELEMCNT
 	li	a2, QUEUE_ELEMSZ
 	call	queue_init
-	
-	clr	s1
 
-	# load all modules from inputs into the stack
-	mv	a0, s10
-loop_pass1:
-	inc	s1
-	addi	sp, sp, -TEMP_SIZE
-	lb	t0, (a0)
-	sd	t0, TEMP_TYPE(sp)
-	inc	a0
-	call	parse_label
-	addi	a0, a0, 4
-	sd	a0, TEMP_PTR(sp)
-	sd	a1, TEMP_LABEL(sp)
-	call	skip_to_next_line
-	blt	a0, s11, loop_pass1
-
-	# allocate meory for the modules vector
-	la	a0, arena
-	li	a1, MOD_SIZE
-	mul	a1, a1, s1
-	call	arena_alloc
+	la	a0, compar_labels
+	la	a1, alloc
+	la	a2, free
+	call	redblacktree_init
 	mv	s0, a0
 
-	
-	# copy modules from the stack to the modules vector
-
-	mv	s2, s0			# mods array
-	mv	s3, s1			# countdown
-loop_store_mods:
-	ld	t0, TEMP_PTR(sp)
-	sd	t0, MOD_PTR(s2)
-	ld	t0, TEMP_LABEL(sp)
-	sd	t0, MOD_LABEL(s2)
-	ld	t0, TEMP_TYPE(sp)
-	sb	t0, MOD_TYPE(s2)
-
-	sd	zero, MOD_INS(s2)
-	sb	zero, MOD_MEM(s2)
-
-	addi	s2, s2, MOD_SIZE
-	dec	s3
-	addi	sp, sp, TEMP_SIZE
-	bnez	s3, loop_store_mods
-
-
-	# sort modules by labels
-	mv	a0, s0
-	mv	a1, s1
-	li	a2, MOD_SIZE
-	la	a3, compar_labels
-	call	quicksort
-
-
+loop_lines:
+	lb	s1, (s10)
+	inc	s10
 	mv	a0, s10
-	mv	s2, s0
-	mv	s9, s1			# countdown
-	addi	sp, sp, -16
-	mv	s5, sp
-loop_origs:
+	call	parse_label
+	addi	s10, a0, 3			# skip " ->"
 
-	lb	t0, MOD_TYPE(s2)
-	li	t1, TYPE_BCAST
+	mv	a0, s0
+	call	get_mod_ptr
+	mv	s2, a0
 
-	bne	t0, t1, not_bcast
-
-	mv	s8, s2			# store pointer to broadcast component
+	sb	s1, MOD_TYPE(s2)
+	
+	li	t0, TYPE_BCAST
+	bne	s1, t0, not_bcast
+	mv	s8, s2				# copy broadcaster pointer
 not_bcast:
-
-	ld	a0, MOD_PTR(s2)
-	sd	x0, MOD_OUTS(s2)
 
 	clr	s6				# initialize counter
 loop_dests:
+	inc	s10				# skip space
 	inc	s6
+	mv	a0, s10
 	call	parse_label
-
-	li	t0, RX_LABEL
-	bne	a1, t0, not_rx
-	mv	s7, s2				# save rx's predecessor
-not_rx:
-
-	sd	a1, 0(s5)			# store destination label
-	sd	a0, 8(s5)			# save input pointer
+	mv	s10, a0				# destination label
 
 	mv	a0, s0
-	mv	a1, s1
-	li	a2, MOD_SIZE
-	la	a3, compar_labels
-	mv	a4, s5
-	call	binsearch
+	call	get_mod_ptr
 	mv	s3, a0
-
-	clr	s4
-	beqz	s3, dest_untyped		# untyped module found
-	lb	t0, MOD_TYPE(s3)
-	li	t1, TYPE_FLIPFLOP
-	ld	s4, MOD_INS(s3)
-	beq	t0, t1, dest_flipflop
 
 
 	# conjunction module
@@ -171,25 +108,20 @@ not_rx:
 	call	arena_alloc
 	mv	s4, a0
 
+	sd	zero, (s4)
+
 	addi	a0, s3, MOD_INS
 	mv	a1, s4
-	#clr	a2
 	mv	a2, s2
 	call	push_signal
-
-add_to_orig:
-dest_untyped:
-dest_flipflop:
 
 	addi	sp, sp, -16
 	sd	s4, 0(sp)
 	sd	s3, 8(sp)
 
-	ld	a0, 8(s5)
-
 	li	t1, ','
-	lb	t0, (a0)
-	addi	a0, a0, 2
+	lb	t0, (s10)
+	inc	s10				# skip ',' or '\n'
 	beq	t0, t1, loop_dests
 
 	# copy destination modules from 
@@ -202,69 +134,61 @@ loop_copy:
 	addi	sp, sp, 16
 	dec	s6
 	bnez	s6, loop_copy
+	blt	s10, s11, loop_lines
 
 
-
-	dec	a0
-
-	addi	s2, s2, MOD_SIZE
-
-	dec	s9
-	bnez	s9, loop_origs
-
-
+	# PART 1
 
 
 	# initialize counters for low and high pulses
-	#addi	sp, sp, -16
+	addi	sp, sp, -16
 	sd	zero, 0(sp)
 	sd	zero, 8(sp)
 
 	li	s9, 1000			# presses countdown
-
 loop_presses:
-	# initialize the queue with the broadcaster
 	la	a0, queue
 	call	queue_push
-	sd	s8, (a0)
-
+	sd	s8, 0(a0)
 	mv	a0, sp
 	clr	a1
-	#li	a1, 0x0000000000012ad8
-	#li	a1, 0x0000000000012ab8
-	#li	a1, 0x0000000000012a18
-	#li	a1, 0x0000000000012998
 	call	button_press
-
 	dec	s9
 	bnez	s9, loop_presses
 
-
 	ld	t0, 0(sp)
 	ld	t1, 8(sp)
+	addi	sp, sp, 16
 	mul	a0, t0, t1
 	call	print_int
-	addi	sp, sp, 16
 
-	ld	t0, MOD_INS(s7)
-	ld	t0, LIST_NEXT(t0)
-	ld	t0, LIST_NEXT(t0)
-	ld	t0, LIST_NEXT(t0)
-	#ld	t1, LIST_VAL(t0)
-	#ld	t2, (t1)
-	ld	s3, LIST_MOD(t0)
-	#ld	t2, MOD_VAL(t1)
 
-	ld      s7, MOD_INS(s7)
+	# PART 2
 
-	li	s6, 1
+	# Analysis of the input file shows that the RX module has one conjunction input module that has 4 inputs.
+	# That module will send a low pulse when all its inputs receive a high pulse.
+	# We need to find out the number of button press before each of the module's inputs receive a high pulse.
+	# Solution to part 2 is the product of the press counts for all the inputs.
+
+
+	la	a0, rx_str
+	call	parse_label
+	mv	a0, s0
+	call	get_mod_ptr
+
+	ld	t0, MOD_INS(a0)
+	ld	t0, LIST_MOD(t0)
+	ld	s7, MOD_INS(t0)
+	
+	li	s6, 1				# initialize counts product
 
 loop_ins:
 	ld	s3, LIST_MOD(s7)
 
 	mv	a0, s0
-	mv	a1, s1
-	call	reset
+	la	a1, reset
+	clr	a2
+	call	redblacktree_inorder
 
 	la	a0, queue
 	li	a1, QUEUE_ELEMCNT
@@ -290,8 +214,6 @@ loop_until_high:
 
 	bnez	s7, loop_ins
 	
-end:
-
 	mv	a0, s6
 	call	print_int
 	
@@ -300,6 +222,40 @@ end:
 	li      a7, SYS_EXIT
 	ecall
 	.size	_start, .-_start
+
+
+	# a0: tree
+	# a1: label
+	.type	get_mod_ptr, @function
+get_mod_ptr:
+	addi	sp, sp, -32
+	sd	ra,  0(sp)
+	sd	s0,  8(sp)
+	sd	s1, 16(sp)
+
+	mv	s0, a0
+	mv	s1, a1
+
+	la	a0, arena
+	li	a1, MOD_SIZE
+	call	arena_alloc
+
+	sd	s1, MOD_LABEL(a0)
+	sd	zero, MOD_INS(a0)
+	sd	zero, MOD_OUTS(a0)
+	sb	zero, MOD_TYPE(a0)
+	sb	zero, MOD_MEM(a0)
+
+	mv	a1, a0
+	mv	a0, s0
+	call	redblacktree_insert_or_free
+	
+	ld	ra,  0(sp)
+	ld	s0,  8(sp)
+	ld	s1, 16(sp)
+	addi	sp, sp, 32
+	ret
+	.size	get_mod_ptr, .-get_mod_ptr
 
 
 	.type	button_press, @function
@@ -328,11 +284,11 @@ loop_onepress:
 
 	la	a0, queue
 	call	queue_pop
+
 	clr	a1
 	beqz	a0, loop_onepress_end		# end loop when queue empty
 	ld	s7, 0(a0)			# load module pointer
-	beqz	s7, loop_onepress		# skip unregistered module
-	ld	s11, 8(a0)			# load pulse (flipflip only)
+	ld	s11, 8(a0)			# load pulse (flipflop only)
 
 	lb	t0, MOD_TYPE(s7)
 	li	t1, TYPE_BCAST
@@ -341,10 +297,12 @@ loop_onepress:
 	beq	t0, t1, emit_conj
 	li	t1, TYPE_FLIPFLOP
 	beq	t0, t1, emit_flipflop
+
+	beqz	t0, loop_onepress			# null type modules do not emit
 	
 	# should not reach here
 	li	a0, 2
-	li	a7, 93
+	li	a7, SYS_EXIT
 	ecall
 
 emit_bcast:
@@ -389,22 +347,22 @@ loop_emit:
 	sd	t0, (s10)
 	
 	ld	t0, LIST_VAL(s2)
-	beqz	t0, skip_emit
 	sd	s6, (t0)
-skip_emit:
 	ld	s2, LIST_NEXT(s2)
 	bnez	s2, loop_emit
 
 	# enqueue destination modules
 	ld	s2, MOD_OUTS(s7)
 loop_enqueue:
+	beqz	s2, loop_enqueue_end
 	ld	s3, LIST_MOD(s2)
 	la	a0, queue
 	call	queue_push
-	sd	s3, (a0)
+	sd	s3, 0(a0)
 	sd	s6, 8(a0)
 	ld	s2, LIST_NEXT(s2)
-	bnez	s2, loop_enqueue
+	j	loop_enqueue
+loop_enqueue_end:
 
 
 	j	loop_onepress
@@ -425,6 +383,32 @@ loop_onepress_end:
 	.size	button_press, .-button_press
 
 
+	.type	free, @function
+free:
+	addi	sp, sp, -16
+	sd	ra, 0(sp)
+	mv	a1, a0
+	la	a0, arena
+	call	arena_free
+	ld	ra, 0(sp)
+	addi	sp, sp, 16
+	ret
+	.size	free, .-free
+
+
+	.type	alloc, @function
+alloc:
+	addi	sp, sp, -16
+	sd	ra, 0(sp)
+	mv	a1, a0
+	la	a0, arena
+	call	arena_alloc
+	ld	ra, 0(sp)
+	addi	sp, sp, 16
+	ret
+	.size	alloc, .-alloc
+
+
 
 
 	.type	reset, @function
@@ -440,9 +424,6 @@ skip_zero:
 	ld	t0, LIST_NEXT(t0)
 	j	loop_reset_out
 loop_reset_out_end:
-	addi	a0, a0, MOD_SIZE
-	dec	a1
-	bnez	a1, reset
 	ret
 	.size	reset, .-reset
 
@@ -510,9 +491,12 @@ compar_labels:
 	.size	compar_labels, .-compar_labels
 
 
+
 	.section .rodata
 	.type	filename, @object
 filename:
 	.string "inputs/day20"
 	.size	filename, .-filename
+rx_str:
+	.string	"rx"
 
