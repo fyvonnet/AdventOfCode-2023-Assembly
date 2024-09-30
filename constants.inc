@@ -1,6 +1,7 @@
 
 	.set	SYS_EXIT, 93
 	.set	SYS_WRITE, 64
+	.set	SYS_TIMES, 153
 	.set	EXIT_SUCCESS, 0
 	.set	ASCII_ZERO, 48
 	.set	ASCII_SEVEN, 55
