@@ -38,7 +38,7 @@ loop_read:
 
 	la	a0, compar
 	la	a1, alloc
-	clr	a2
+	la	a2, free
 	call	redblacktree_init
 	mv	s6, a0
 
@@ -156,15 +156,11 @@ cache_query:
 
 	mv	a0, s0
 	mv	a1, s1
-	call	redblacktree_insert
+	call	redblacktree_insert_or_free
 
-	beqz	a0, cache_new
+	beqz	a1, cache_new
+
 	mv	s0, a0
-
-	la	a0, arena
-	mv	a1, s1
-	call	arena_free
-
 	li	a0, 1
 	ld	a1, 8(s0)
 	j	cache_query_end
@@ -316,4 +312,18 @@ alloc:
 	addi	sp, sp, 16
 	ret
 	.size	alloc, .-alloc
-#
+
+
+	.type	free, @function
+free:
+	addi	sp, sp, -16
+	sd	ra,  0(sp)
+	mv	a1, a0
+	la	a0, arena
+	call	arena_free
+	ld	ra,  0(sp)
+	addi	sp, sp, 16
+	ret
+	.size	free, .-free
+
+
