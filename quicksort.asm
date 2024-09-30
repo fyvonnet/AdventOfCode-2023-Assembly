@@ -3,10 +3,9 @@
 	.section .text
 
 quicksort:
-	addi	sp, sp, -88
+	addi	sp, sp, -96
 	sd	ra,  0(sp)
 	sd	s0,  8(sp)
-	sd	s1, 16(sp)
 	sd	s2, 24(sp)
 	sd	s3, 32(sp)
 	sd	s4, 40(sp)
@@ -15,10 +14,8 @@ quicksort:
 	sd	s7, 64(sp)
 	sd	s8, 72(sp)
 	sd	s9, 80(sp)
-	sub	sp, sp, a2
 
 	mv	s0, a0		# base
-	mv	s1, sp		# temp
 	mv	s2, a2		# size
 	mv	s3, a3		# compar
 	
@@ -27,19 +24,17 @@ quicksort:
 	add	a1, a1, a0
 	call	_quicksort
 
-	add	sp, sp, s2
-	ld	s9, 80(sp)
-	ld	s8, 72(sp)
-	ld	s7, 64(sp)
-	ld	s6, 56(sp)
-	ld	s5, 48(sp)
-	ld	s4, 40(sp)
-	ld	s3, 32(sp)
-	ld	s2, 24(sp)
-	ld	s1, 16(sp)
-	ld	s0,  8(sp)
 	ld	ra,  0(sp)
-	addi	sp, sp, 88
+	ld	s0,  8(sp)
+	ld	s2, 24(sp)
+	ld	s3, 32(sp)
+	ld	s4, 40(sp)
+	ld	s5, 48(sp)
+	ld	s6, 56(sp)
+	ld	s7, 64(sp)
+	ld	s8, 72(sp)
+	ld	s9, 80(sp)
+	addi	sp, sp, 96
 	ret
 
 
@@ -47,7 +42,7 @@ _quicksort:
 	bge	a0, a1, end_quicksort
 	blt	a0, s0, end_quicksort
 
-	addi	sp, sp, -24
+	addi	sp, sp, -32
 	sd	ra, 0(sp)
 	sd	a0, 8(sp)
 	sd	a1, 16(sp)
@@ -64,13 +59,13 @@ _quicksort:
 	call	_quicksort
 	
 	ld	ra, 0(sp)
-	addi	sp, sp, 24
+	addi	sp, sp, 32
 end_quicksort:
 	ret
 
 
 partition:
-	addi	sp, sp, -8
+	addi	sp, sp, -16
 	sd	ra, 0(sp)
 
 	mv	s4, a1		# pivot
@@ -97,7 +92,7 @@ skip_swap:
 	mv	a0, s5
 
 	ld	ra, 0(sp)
-	addi	sp, sp, 8
+	addi	sp, sp, 16
 	ret
 
 swap:
