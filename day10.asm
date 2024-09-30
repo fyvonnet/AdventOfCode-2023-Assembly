@@ -66,6 +66,11 @@ back_lf:
 	sh	t0, 0(sp)
 
 loop_count_steps:
+	mv	a0, s4
+	call	print_int
+	mv	a0, s5
+	call	print_int
+
 	mul	t0, s5, s1				# index of beginning of row
 	add	t0, t0, s4				# index of square
 	add	t6, t0, s0				# address of square
@@ -114,6 +119,8 @@ loop_count_steps_end:
 	
 	srli	s7, s7, 1				# farthest distance is half the whole loop length
 
+	j	end
+
 	mv	a0, s7
 	call	print_int
 
@@ -155,6 +162,8 @@ not_neg:
 	sub	a0, s11, s7
 	inc	a0
 	call	print_int
+
+end:
 
 	li      a7, SYS_EXIT
 	li      a0, EXIT_SUCCESS
@@ -216,4 +225,4 @@ rel_coords:
 	.byte	 0, -1
 	.byte	0b00001101
 
-
+format: .string "%d %d\n"
