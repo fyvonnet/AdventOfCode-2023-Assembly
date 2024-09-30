@@ -4,7 +4,7 @@
         .endm
 
         .macro  DEC reg, val=1
-        addi \reg, \reg, \val
+        addi \reg, \reg, -\val
         .endm
 
 	.macro	CLR reg
