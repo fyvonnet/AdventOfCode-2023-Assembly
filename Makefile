@@ -83,9 +83,9 @@ day19: day19.o misc.o quicksort.o binsearch.o memory.o
 day20: day20.o misc.o quicksort.o memory.o print.o queue.o redblacktree.o
 	ld day20.o misc.o quicksort.o memory.o print.o queue.o redblacktree.o -o day20
 
-day21: day21.o misc.o 
-	cc day21.o misc.o -o day21
+day21: day21.o misc.o queue.o
+	ld day21.o misc.o queue.o -o day21
 
 %.o: %.asm
-	as -g $< -o $@
+	as -march=rv64imafdcv -g $< -o $@
 
