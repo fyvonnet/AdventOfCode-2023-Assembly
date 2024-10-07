@@ -17,8 +17,8 @@ moves_y:
 	.section .bss
 	.balign 8
 
-	.set    QUEUE_ELEMCNT, 5000
-	.set    QUEUE_ELEMSZ, 8
+	.set    QUEUE_ELEMCNT, 300
+	.set    QUEUE_ELEMSZ, 12
 	.set    QUEUE_SIZE, 40 + (QUEUE_ELEMCNT * QUEUE_ELEMSZ)
 	.type   queue, @object
 	.size   queue, QUEUE_SIZE
@@ -100,42 +100,57 @@ loop_parse_input_next:
 	j	loop_parse_input
 loop_parse_input_end:
 
-	# initialize vectors
+
 	vsetivli zero, 4, e32
+
+	# initialize vectors with relative adjacent coordinates
 	la	t0, moves_x
-	la	t1, moves_y
 	vle32.v	v0, (t0)
+	la	t1, moves_y
 	vle32.v	v1, (t1)
 
 	# allocate stack space for adjacent coordinates
 	addi	sp, sp, -32
 	mv	s4, sp
 
-	# initialize queue with starting coordinates
+
+	# solution to part 1 is the count of squares reachable in an even number of steps [0, 64]
+
+	# initialize queue with starting coordinates and steps countdown
 	la	a0, queue
 	call	queue_push
 	sw	s2, 0(a0)
 	sw	s3, 4(a0)
+	li	t0, 64
+	sw	t0, 8(a0)
 
-	la	s8, 64			# turns countdown
-loop_turns:
-	la	a0, queue
-	call	queue_count
-	mv	s7, a0
-loop_oneturn:
-	la	a0, queue
-	call	queue_pop
-	lw	s2, 0(a0)
-	lw	s3, 4(a0)
-
+	# set start case as occupied
 	mv	a0, s0
 	mv	a1, s2
 	mv	a2, s3
 	mv	a3, s1
 	call	get_addr
-	sb	zero, (a0)		# clear square
+	li	t0, 1
+	lb	t0, (a0)
 
-	
+	clr	s8			# squares count
+loop:
+	la	a0, queue
+	call	queue_pop
+	lw	s2, 0(a0)
+	lw	s3, 4(a0)
+	lw	s7, 8(a0)
+
+	bltz	s7, loop_end
+
+	li	t0, 2
+	rem	t0, s7, t0
+	bnez	t0, skip_count		# skip count if odd step number
+	inc	s8
+skip_count:
+
+	dec	s7			# decrements steps countdown
+
 	# compute ajacent coordinates
 	vadd.vx	v2, v0, s2
 	vadd.vx	v3, v1, s3
@@ -143,40 +158,38 @@ loop_oneturn:
 	vse32.v	v2, (s4)
 	vse32.v	v3, (t0)
 
-	li	s5, 4
+	li	s5, 4			# adjacent squares countdown
 	mv	s6, s4			# adjacent coordinates pointer
 loop_adjacents:
-	lw	s2,  0(s6)
-	lw	s3, 16(s6)
+	lw	s2,  0(s6)		# load adjacent X coordinate
+	lw	s3, 16(s6)		# load adjacent Y coordinate
 
 	mv	a0, s0
 	mv	a1, s2
 	mv	a2, s3
 	mv	a3, s1
 	call	get_addr
-	lb	t0, (a0)		# check square content
-	bnez	t0, skip_adjacent	# rock present or square already stepped on
-	li	t1, 1			# set map square so we won't step on the same square twice
+
+	lb	t0, (a0)		# check square occupancy
+	bnez	t0, skip_adjacent	# skip if occupied
+	li	t1, 1			# set map square as occuied
 	sb	t1, (a0)
 	la	a0, queue
 	call	queue_push
 	sw	s2, 0(a0)
 	sw	s3, 4(a0)
+	sw	s7, 8(a0)
 skip_adjacent:
-	dec	s5
-	addi	s6, s6, 4
+	dec	s5			# decrement countdown
+	addi	s6, s6, 4		# move pointer to next coordinate
 	bnez	s5, loop_adjacents
 
-	dec	s7
-	bnez	s7, loop_oneturn
+	j	loop
+loop_end:
 
-	dec	s8
-	bnez	s8, loop_turns
-
-	la	a0, queue
-	call	queue_count
+	mv	a0, s8
 	call	print_int
-	
+
 	li	a0, EXIT_SUCCESS
 	li	a7, SYS_EXIT
 	ecall
