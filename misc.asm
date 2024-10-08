@@ -8,8 +8,34 @@
 	.global is_digit
 	.global	search_char
 	.global exit
+	.global	count_input_lines
 
 	.section .text
+
+count_input_lines:
+	addi	sp, sp, -32
+	sd	ra,  0(sp)
+	sd	s1, 16(sp)
+	sd	s2, 24(sp)
+
+	mv	s1, a1
+	li	s2, 0
+
+loop_count_input_lines:
+	addi	s2, s2, 1
+	call	skip_to_next_line
+	blt	a0, s1, loop_count_input_lines
+
+	mv	a0, s2
+
+	ld	ra,  0(sp)
+	ld	s1, 16(sp)
+	ld	s2, 24(sp)
+	addi	sp, sp, 32
+	ret
+
+
+
 
 exit:
 	li	a7, 93
