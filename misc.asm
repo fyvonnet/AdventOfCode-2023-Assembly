@@ -9,8 +9,12 @@
 	.global	search_char
 	.global exit
 	.global	count_input_lines
+	.global	empty_function
 
 	.section .text
+
+empty_function:
+	ret
 
 count_input_lines:
 	addi	sp, sp, -32
