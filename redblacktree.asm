@@ -814,6 +814,31 @@ main_loop_end:
 	addi	sp, sp, 64
 
 	ret
+
+
+	.globl redblacktree_peek_min
+redblacktree_peek_min:
+	addi	sp, sp, -64
+	sd	ra,  0(sp)
+
+	ld	t0, TREE_ROOT(a0)
+	ld	t1, TREE_NIL(a0)
+
+	bne	t0, t1, redblacktree_peek_min_cont
+
+	li	a0, -1
+	j	redblacktree_peek_min_ret
+
+redblacktree_peek_min_cont:
+	mv	a1, t0
+	call	tree_minimum
+	ld	a0, NODE_VALUE(a0)
+
+redblacktree_peek_min_ret:
+	ld	ra,  0(sp)
+	addi	sp, sp, 64
+	ret
+	.size	redblacktree_peek_min, .-redblacktree_peek_min
 	
 
 
