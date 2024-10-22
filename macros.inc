@@ -11,6 +11,12 @@
 	mv	\reg, zero
 	.endm
 
+	.macro	EXIT status=0
+	li	a0, \status
+	li	a7, 93
+	ecall
+	.endm
+
 
 	.macro	STORE_ALL_TEMP_REGS
 	addi	sp, sp, -128
