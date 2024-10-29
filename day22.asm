@@ -249,6 +249,9 @@ loop_removeable_end:
 	mv	s2, s0
 loop_part2: # for every non-removable brick
 
+	lb	t0, REMOVABLE(s2)
+	bnez	t0, loop_part2_next
+
 	# reset memory
 	la	a0, bintree
 	li	a1, BINTREE_SIZE
@@ -281,6 +284,8 @@ loop_call_above_end:
 	call	redblacktree_count_nodes
 	dec	a0				# un-count starting node
 	add	s1, s1, a0
+
+loop_part2_next:
 
 	addi	s2, s2, BRICK_DATA_SIZE
 	lw	t0, X_MIN(s2)
