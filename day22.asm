@@ -239,21 +239,6 @@ loop_removeable_end:
 	call	print_int
 
 
-#	ld	t0, 24-64(s0)
-#	clr	a0
-#loop_count:
-#	ld	t1, LIST_BRICK(t0)
-#	lb	t2, REMOVABLE(t1)
-#	bnez	t2, loop_count_skip
-#	inc	a0
-#loop_count_skip:
-#	ld	t0, LIST_NEXT(t0)
-#	bnez	t0, loop_count
-#	call	print_int
-#
-#	ebreak
-
-
 
 	##########
 	# PART 2 #
@@ -262,7 +247,6 @@ loop_removeable_end:
 
 	clr	s1
 	mv	s2, s0
-clr	s11
 loop_part2: # for every non-removable brick
 
 	# reset memory
@@ -300,7 +284,6 @@ loop_call_above_end:
 
 	addi	s2, s2, BRICK_DATA_SIZE
 	lw	t0, X_MIN(s2)
-inc	s11
 	bgez	t0, loop_part2
 
 
