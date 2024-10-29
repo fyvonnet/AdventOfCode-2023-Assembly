@@ -117,7 +117,7 @@ search_end:
 	ld	ra,  0(sp)
 	ld	s0,  8(sp)
 	ld	s1, 16(sp)
-	ld	s3, 24(sp)
+	ld	s2, 24(sp)
 	ld	s3, 32(sp)
 	ld	s4, 40(sp)
 	addi	sp, sp, 64
@@ -326,22 +326,55 @@ rbtpopminmax_end:
 	ret
 	.size	redblacktree_pop_minmax, .-redblacktree_pop_minmax
 
+	
+	# a0: node value (ignored)
+	# a1: ptr to counter
+	.type 	count_nodes, @function
+count_nodes:
+	ld	t0, (a1)
+	addi	t0, t0, 1
+	sd	t0, (a1)
+	ret
+	.size	count_nodes, .-count_nodes
+
+
+	# a0: tree
+	.globl	redblacktree_count_nodes
+	.type redblacktree_count_nodes, @function
+redblacktree_count_nodes:
+	addi	sp, sp, -16
+	sd	x0,  0(sp)
+	sd	ra,  8(sp)
+
+	la	a1, count_nodes
+	mv	a2, sp
+	call	redblacktree_inorder
+
+	ld	a0,  0(sp)
+	ld	ra,  8(sp)
+	addi	sp, sp, 16
+	ret
+	.size	redblacktree_count_nodes, .-redblacktree_count_nodes
+
+
 
 	# a0: tree
 	# a1: function pointer
+	# a2: user pointer
 	.globl	redblacktree_inorder
 	.type redblacktree_inorder, @function
 redblacktree_inorder:
 	addi	sp, sp, -16
 	sd	ra,  0(sp)
 
+	mv	a3, a2
 	mv	a2, a1
 	ld	a1, TREE_NIL(a0)
 	ld	a0, TREE_ROOT(a0)
 	call	inorder
 
 	ld	ra,  0(sp)
-	addi	sp, sp, -16
+	addi	sp, sp, 16
 	ret
 	.size	redblacktree_inorder, .-redblacktree_inorder
 
@@ -353,22 +386,26 @@ redblacktree_inorder:
 inorder:
 	beq	a0, a1, inorder_end
 
-	addi	sp, sp, -32
+	addi	sp, sp, -48
 	sd	ra,  0(sp)
 	sd	s0,  8(sp)
 	sd	s1, 16(sp)
 	sd	s2, 24(sp)
+	sd	s3, 32(sp)
 	
 	mv	s0, a0
 	mv	s1, a1
 	mv	s2, a2
+	mv	s3, a3
 
 	ld	a0, NODE_LEFT(s0)
 	mv	a1, s1
 	mv	a2, s2
+	mv	a3, s3
 	call	inorder
 
 	ld	a0, NODE_VALUE(s0)
+	mv	a1, s3
 	jalr	ra, s2
 	
 	ld	a0, NODE_RIGHT(s0)
@@ -381,7 +418,8 @@ inorder:
 	ld	s0,  8(sp)
 	ld	s1, 16(sp)
 	ld	s2, 24(sp)
-	addi	sp, sp, 32
+	ld	s3, 32(sp)
+	addi	sp, sp, 48
 inorder_end:
 	ret
 	.size	inorder, .-inorder
