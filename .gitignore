@@ -32,6 +32,7 @@ day19
 day19count
 day20
 day21
+day22
 testmacros
 testtimes
 testtree
@@ -39,5 +40,6 @@ testtree
 *.new
 *.bak
 *.old
+*.swp
 TODO
 inputs
