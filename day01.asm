@@ -1,231 +1,259 @@
-	.global _start
-
-	.include "macros.inc"
 	.include "constants.inc"
+	.include "macros.inc"
+
+
+	.set	DIGITS,		 0
+	.set	DIGITS_INV, 	 8
+	.set	INPUT_LINE, 	16
+	.set	INPUT_LINE_INV, 24
+	.set	DIGIT, 		32
+	.set	DIGIT_INV,	40
+	.set	POSITION, 	48
+	.set	POSITION_INV, 	56
+
+
+	.section .rodata
+
+
+digits_str:
+	.string	"zero", "one", "two", "three",	"four"
+	.string	"five", "six", "seven", "eight", "nine"
+	.set DIGIT_STR_LEN, .-digits_str
+
+filename:
+	.string	"inputs/day01"
+	
 
 	.section .text
+	.balign	8
 
+
+	.globl	_start
+	.type	_start, @function
 _start:
-	# sort letter-digits for binary search
-	la	a0, ldigits
-	li	a1, 9				# 9 elements
-	li	a2, 16				# elements are 11 bytes long
-	la	a3, compar
-	call	quicksort
+	clr 	s3
+	clr 	s4
 
-	la      a0, filename
-	call    map_input_file
+	la	a0, filename
+	call	map_input_file
+	mv	s10, a0
 	add	s11, a0, a1
 
-	addi	sp, sp, -8
-	sd	a0, 0(sp)			# save input pointer
+	dec	sp, 64
+	mv	s0, sp
 
-	# part 1
-	li	s4, 0				# skip letter digits
-	call	solve
+	# allocate stack space for the reverse input line
+	dec	sp
+	sb	zero, (sp)
+	mv	s2, sp				# point at the end of the string
+	dec	sp, 63
 
-	ld	a0, 0(sp)			# restore input pointer
-	addi	sp, sp, 8
+	la	t0, digits_str
+	sd	t0, DIGITS(s0)
 
-	# part 2
-	li	s4, 1				# don't skip letter digits
-	call	solve
+	dec	sp, DIGIT_STR_LEN
+	sd	sp, DIGITS_INV(s0)
+	mv	t1, sp
 
-	li      a7, SYS_EXIT
-	li      a0, EXIT_SUCCESS
-	ecall
+	dec	sp, 10
+	mv	s1, sp
+
+	li	t2, 10
+	mv	t3, s1
+	mv	t4, t0
+loop_revert_copy:
+	sub	t6, t4, t0
+	sb	t6, (t3)
+	inc	t3
+	dec	sp
+	sb	zero, (sp)
+loop_seek_null:
+	lb	t5, (t4)
+	beqz	t5, loop_seek_null_end
+	dec	sp
+	sb	t5, (sp)
+	inc	t4
+	j	loop_seek_null
+loop_seek_null_end:
+	inc	t4
+	nop
+
+	# copy the reversed digit string from the stack to the array
+loop_copy_back:
+	lb	t5, (sp)
+	sb	t5, (t1)
+	inc	sp
+	inc	t1
+	bnez	t5, loop_copy_back
+
+	dec	t2
+	bnez	t2, loop_revert_copy
 
 
-solve:
-	addi	sp, sp, -8
-	sd	ra, 0(sp)
-
-	clr	s0				# initialize sum
-
-loop_input:
-	# read first digit fromp the beginning of the line
-	li	a1, 1				# move forward
-	call	read_next_digit
-	li	t0, 10
-	mul	s1, t0, a1
-
-	# move pointer to the end of line
-	li	t1, ASCII_LF
-	dec	a0
 loop:
-	inc	a0
-	lb	t0, 0(a0)
-	bne	t0, t1, loop
 
-	addi	s3, a0, 1			# save pointer to begining of next line
-	addi	a0, a0, -1			# move input pointer to last character of the line
+	sd	s10, INPUT_LINE(s0)
 	
-	# read second digit from  the end of the line
-	li	a1, -1				# move backward
-	call    read_next_digit
-	add	s1, s1, a1			# add second digit to the calibration value
-	add	s0, s0, s1			# add the calibration value to the sum
-	mv	a0, s3				# move to next line
-	blt	a0, s11, loop_input		# loop of EOF not reached
-
+	mv	t0, s2
+	li	t1, '\n'
+loop_copy_input_line:
+	dec	t0
+	lb	t2, (s10)
+	beq	t2, t1, loop_copy_input_line_end
+	sb	t2, (t0)
+	inc	s10
+	j	loop_copy_input_line
+	
+loop_copy_input_line_end:
+	inc	s10
+	inc	t0
+	sd	t0, INPUT_LINE_INV(s0)
+	
 	mv	a0, s0
+	call	search_digit
+	addi	a0, s0, 8
+	call	search_digit
+	mv	a0, s0
+	call	compute_value
+	add	s3, s3, a0
+	
+	mv	a0, s0
+	mv	a1, s1
+	call	search_string
+	addi	a0, s0, 8
+	mv	a1, s1
+	call	search_string
+	mv	a0, s0
+	call	compute_value
+	add	s4, s4, a0
+	
+	blt	s10, s11, loop
+	
+	mv	a0, s3
 	call	print_int
+	mv	a0, s4
+	call	print_int
+	
+	la	a0, EXIT_SUCCESS
+	la	a7, SYS_EXIT
+	ecall
+.size	_start, .-_start
 
-	ld	ra, 0(sp)
-	addi	sp, sp, 8
+
+
+	.type	search_digit, @function
+search_digit:
+	ld	t6, INPUT_LINE(a0)
+	mv	t0, t6
+	li	t1, '0'
+	li	t2, '9'
+search_digit_loop:
+	lb	t3, (t0)
+	blt	t3, t1, search_digit_loop_next
+	bgt	t3, t2, search_digit_loop_next
+	sub	t3, t3, t1
+	sd	t3, DIGIT(a0)
+	sub	t0, t0, t6
+	sd	t0, POSITION(a0)
 	ret
+search_digit_loop_next:
+	inc	t0
+	j	search_digit_loop
+	.size	search_digit, .-search_digit
 
-read_next_digit:
-	addi	sp, sp, -32
+
+	# a0: data
+	# a1: offsets
+	.type	search_string, @function
+search_string:
+	dec	sp, 64
 	sd	ra,  0(sp)
 	sd	s0,  8(sp)
 	sd	s1, 16(sp)
 	sd	s2, 24(sp)
-	
-	mv	s2, a1
-	sub	t0, zero, a1
-	add	s1, a0, t0			# pre-move pointer in reverse direction
-rnd_loop:
-	add	s1, s1, s2			# move input pointer
-	lb	s0, 0(s1)			# read character
-	mv	a0, s0
-	call	is_digit			# check if digit
-	beqz	s4, skip_ldigit			# skip search for letter digit on part 1
-	beqz	a0, rnd_ldigit			# not a digit, attemps reading as a letter-digit
-skip_ldigit:
-	beqz	a0, rnd_loop			# not a digit, keep on searching
-	li	t0, ASCII_ZERO
-	sub	a1, s0, t0			# turn ASCII code to actual value
-rnd_end:
-	add	s1, s1, s2			# move input pointer
-	mv	a0, s1				# copy pointer back to a0
+	sd	s3, 32(sp)
+	sd	s4, 40(sp)
+	sd	s5, 48(sp)
+
+	mv	s0, a0				# data
+	mv	s1, a1				# offsets
+	li	s2, 10				# countdown
+	ld	s3, DIGITS(s0)			# letter digits
+	clr	s4				# digit number
+	ld	s5, INPUT_LINE(s0)		# input line
+	mv	s6, s1				# offsets pointer
+
+loop_search_string:
+	lb	t0, (s5)
+	li	t1, 'a'
+	blt	t0, t1, search_string_ret	# abandon when digit found
+	lb	t0, (s1)
+	add	a0, s3, t0			# digit string
+	mv	a1, s5				# input line
+
+	call	strings_equal
+	bgtz	a0, search_string_succ
+
+	# no letter digit matches, move to the next input's character
+	dec	s2
+	beqz	s2, search_string_adv
+
+	# move to the next digit
+	inc	s1
+	inc	s4
+	j	loop_search_string
+
+search_string_adv:
+	inc	s5
+	dec	s1, 9
+	li	s2, 10
+	clr	s4
+	j	loop_search_string
+
+search_string_succ:
+	sd	s4, DIGIT(s0)
+
+search_string_ret:
 
 	ld	ra,  0(sp)
 	ld	s0,  8(sp)
 	ld	s1, 16(sp)
 	ld	s2, 24(sp)
-	addi	sp, sp, 32
+	ld	s3, 32(sp)
+	ld	s4, 40(sp)
+	ld	s5, 48(sp)
+	inc	sp, 64
 	ret
+	.size	search_string, .-search_string
 
 
-rnd_ldigit:
-	li	t0, 0				# L
-	li	t2, 8				# R
-	la	t3, ldigits			# address of the ldigit vector
-	lh	t5, 0(s1)			# load the candidate ldigit
-rnd_ldigit_loop:
-	bgt	t0, t2, rnd_loop		# not a letter digit
-	add	t1, t0, t2			# m = L + R
-	srli	t1, t1, 1			# m = m / 2
-	slli	s6, t1, 4			# x16 to get offset
-	add	s6, s6, t3			# m address
-	lh	s7, 0(s6)			# m value
-	blt	s7, t5, search_right
-	bgt	s7, t5, search_left
-	# corresponding 16-bits value found
-	# validate the whole string
-	mv	a0, s1				# pointer to cadidate string
-	ld	a1, 3(s6)			# pointer to model string
-	call	validate
-	beqz	a0, rnd_loop			# not validated, keep on searching
-	lb	a1, 2(s6)			# value of the ldigit
-	j	rnd_end
-search_right:
-	addi	t0, t1, 1
-	j	rnd_ldigit_loop			# L = m + 1
-search_left:
-	addi	t2, t1, -1			# R = m - 1
-	j	rnd_ldigit_loop
-	
-
-	# a0: candidate string
-	# a1: model string
-validate:
-	li	t2, 0
-	li	t3, ASCII_LF
-validate_loop:
-	lb	t1, 0(a1)
-	beqz	t1, validate_ok			# end of model string reach, str valid
-	lb	t0, 0(a0)
-	beq	t0, t3, validate_nok		# eol reached, str not valid
-	bne	t0, t1, validate_nok		# characters different, str not valid
+	# a0: substring
+	# a1: string
+	.type	strings_equal, @function
+strings_equal:
+	lb	t0, (a0)
+	beqz	t0, strings_equal_succ
+	lb	t1, (a1)
+	bne	t0, t1, strings_equal_fail
 	inc	a0
 	inc	a1
-	j	validate_loop
-validate_ok:
-	li	a0, 1
+	j	strings_equal
+strings_equal_succ:
+	la	a0, 1
 	ret
-validate_nok:
-	li	a0, 0
+strings_equal_fail:
+	clr	a0
 	ret
+	.size	strings_equal, .-strings_equal
 
-compar:
-	lh	t0, 0(a0)
-	lh	t1, 0(a1)
-	sub	a0, t0, t1
+
+	.type 	compute_value, @function
+compute_value:
+	ld	t0, DIGIT(a0)
+	ld	t1, DIGIT_INV(a0)
+	li	t2, 10
+	mul	t0, t0, t2
+	add	a0, t0, t1
 	ret
-
-	.section .data
-
-ldigits:
-
-	.ascii	"on"	# 16-bits value for the first two letters
-	.byte	1	# corresponding value
-	.quad	one	# pointer to model string
-	.zero	5	# padding
-
-	.ascii	"tw"
-	.byte	2
-	.quad	two
-	.zero	5
-
-
-	.ascii	"th"
-	.byte	3
-	.quad	three
-	.zero	5
-
-	.ascii	"fo"
-	.byte	4
-	.quad	four
-	.zero	5
-
-	.ascii 	"fi"
-	.byte	5
-	.quad	five
-	.zero	5
-
-	.ascii	"si"
-	.byte	6
-	.quad	six
-	.zero	5
-
-	.ascii	"se"
-	.byte	7
-	.quad	seven
-	.zero	5
-
-	.ascii	"ei"
-	.byte	8
-	.quad	eight
-	.zero	5
-
-	.ascii	"ni"
-	.byte	9
-	.quad	nine
-	.zero	5
-
-	.section .rodata
-
-filename:
-	.string "inputs/day01"
-
-one:	.string "one"
-two:	.string "two"
-three:	.string "three"
-four:	.string "four"
-five:	.string "five"
-six:	.string "six"
-seven:	.string "seven"
-eight:	.string "eight"
-nine:	.string "nine"
+	.size	compute_value, .-compute_value
+	
