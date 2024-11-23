@@ -1,3 +1,5 @@
+	.include "macros.inc"
+
 	.global map_input_file
 	.global parse_integer
 	.global print_int
@@ -10,8 +12,65 @@
 	.global exit
 	.global	count_input_lines
 	.global	empty_function
+	.global	open_input_file
+	.global	read_input_line
+
+	.set	INPUT_LINE_BUFFER, 128
 
 	.section .text
+
+
+open_input_file:
+	mv	a1, a0		# filename
+	li	a0, -100	# AT_FDCWD
+	li	a2, 0		# O_RDONLY
+	li	a7, 56		# SYS_OPENAT
+	ecall
+	ret
+
+read_input_line:
+	addi	sp, sp, -INPUT_LINE_BUFFER
+	mv	t1, a1
+	mv	t5, a0
+	mv	t0, sp
+	mv	a1, sp
+	li	a2, INPUT_LINE_BUFFER
+	li	a7, 63		# SYS_READ
+	ecall
+
+	clr	t2
+	li	t3, '\n'
+
+	bnez	a0, loop_copy_input_line
+	li	a0, -1
+	j	read_input_line_ret
+	
+loop_copy_input_line:
+	lb	t4, (t0)
+	beq	t4, t3, loop_copy_input_line_end
+	sb	t4, (t1)
+	inc	t0
+	inc	t1
+	inc	t2
+	j	loop_copy_input_line
+loop_copy_input_line_end:
+	sb	zero, (t1)
+
+	sub	a1, a0, t2
+	dec	a1
+	neg	a1, a1
+	li	a2, 1		# SEEK_CUR
+	mv	a0, t5
+	li	a7, 62		# SYS_LSEEK
+	ecall
+
+	mv	a0, t2
+read_input_line_ret:
+	addi	sp, sp, INPUT_LINE_BUFFER
+	ret
+
+	
+
 
 empty_function:
 	ret
