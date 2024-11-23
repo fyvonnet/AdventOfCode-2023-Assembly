@@ -141,7 +141,7 @@ loop:
 	mv	a2, s5
 	call	for_all_coords
 
-	call	redblacktree_peek_min
+	call	redblacktree_peek_leftmost
 	lw	s11, HM_HEIGHT(a0)			# max height under the brick
 
 	lw	t0, Z_MIN(s2)				# min height of the brick
@@ -164,7 +164,7 @@ loop:
 	# for all supporting bricks
 loop_supports:
 	mv	a0, s5
-	call	redblacktree_pop_min
+	call	redblacktree_pop_leftmost
 	blez	a0, loop_supports_end
 	lw	t0, HM_HEIGHT(a0)
 	bne	t0, s11, loop_supports_end

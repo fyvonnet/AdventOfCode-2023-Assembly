@@ -258,49 +258,25 @@ insert_end:
 
 
 	# a0: tree
-	.globl	redblacktree_pop_min
-	.type	redblacktree_pop_min, @function
-redblacktree_pop_min:
+	.globl	redblacktree_pop_leftmost
+	.type	redblacktree_pop_leftmost, @function
+redblacktree_pop_leftmost:
 	addi	sp, sp, -64
 	sd	ra,  0(sp)
 	sd	s0,  8(sp)
 	sd	s4, 40(sp)
 	sd	s5, 48(sp)
 
-	la	s4, tree_minimum
-	j	redblacktree_pop_minmax
-	.size	redblacktree_pop_min, .-redblacktree_pop_min
-
-
-	# a0: tree
-	.globl	redblacktree_pop_max
-	.type	redblacktree_pop_max, @function
-redblacktree_pop_max:
-	addi	sp, sp, -64
-	sd	ra,  0(sp)
-	sd	s0,  8(sp)
-	sd	s4, 40(sp)
-	sd	s5, 48(sp)
-
-	la	s4, tree_maximum
-	#j	redblacktree_pop_minmax
-	.size	redblacktree_pop_max, .-redblacktree_pop_max
-
-
-
-
-
-	.type	redblacktree_pop_minmax, @function
-redblacktree_pop_minmax:
+	la	s4, tree_leftmost
 	ld	a1, TREE_ROOT(a0)
 	ld	a2, TREE_NIL(a0)
 	mv	s0, a0
 
-	bne	a1, a2, rbtpopminmax_cont
+	bne	a1, a2, rbtpopleft_cont
 	li	a0, -1
-	j	rbtpopminmax_end
+	j	rbtpopleft_end
 
-rbtpopminmax_cont:
+rbtpopleft_cont:
 	
 	jalr	ra, s4
 	ld	s4, NODE_VALUE(a0)
@@ -316,7 +292,7 @@ rbtpopminmax_cont:
 
 	mv	a0, s4
 
-rbtpopminmax_end:
+rbtpopleft_end:
 
 	ld	ra,  0(sp)
 	ld	s0,  8(sp)
@@ -324,7 +300,7 @@ rbtpopminmax_end:
 	ld	s5, 48(sp)
 	addi	sp, sp, 64
 	ret
-	.size	redblacktree_pop_minmax, .-redblacktree_pop_minmax
+	.size	redblacktree_pop_leftmost, .-redblacktree_pop_leftmost
 
 	
 	# a0: node value (ignored)
@@ -463,8 +439,8 @@ del_elif:
 del_else:
 	mv	a0, s10			# T
 	ld	a1, NODE_RIGHT(s11)	# z.right
-	call	tree_minimum
-	mv	s0, a0			# y = tree_minimum(T, z.right);
+	call	tree_leftmost
+	mv	s0, a0			# y = tree_leftmost(T, z.right);
 	lb	s1, NODE_COLOR(s0)	# y-original-color = y.color
 	ld	s2, NODE_RIGHT(s0)	# x = y.right
 	ld	t0, NODE_RIGHT(s11)	# z.right
@@ -854,42 +830,42 @@ main_loop_end:
 	ret
 
 
-	.globl redblacktree_peek_min
-redblacktree_peek_min:
+	.globl redblacktree_peek_leftmost
+redblacktree_peek_leftmost:
 	addi	sp, sp, -64
 	sd	ra,  0(sp)
 
 	ld	t0, TREE_ROOT(a0)
 	ld	t1, TREE_NIL(a0)
 
-	bne	t0, t1, redblacktree_peek_min_cont
+	bne	t0, t1, redblacktree_peek_leftmost_cont
 
 	li	a0, -1
-	j	redblacktree_peek_min_ret
+	j	redblacktree_peek_leftmost_ret
 
-redblacktree_peek_min_cont:
+redblacktree_peek_leftmost_cont:
 	mv	a1, t0
-	call	tree_minimum
+	call	tree_leftmost
 	ld	a0, NODE_VALUE(a0)
 
-redblacktree_peek_min_ret:
+redblacktree_peek_leftmost_ret:
 	ld	ra,  0(sp)
 	addi	sp, sp, 64
 	ret
-	.size	redblacktree_peek_min, .-redblacktree_peek_min
+	.size	redblacktree_peek_leftmost, .-redblacktree_peek_leftmost
 	
 
 
 	# a0: T
 	# a1: x
-tree_minimum:
+tree_leftmost:
 	ld	t0, TREE_NIL(a0)	# NIL
-tree_minimum_loop:
+tree_leftmost_loop:
 	ld	t1, NODE_LEFT(a1)
-	beq	t0, t1, tree_minimum_end
+	beq	t0, t1, tree_leftmost_end
 	mv	a1, t1
-	j	tree_minimum_loop
-tree_minimum_end:
+	j	tree_leftmost_loop
+tree_leftmost_end:
 	mv	a0, a1
 	ret
 	

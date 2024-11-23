@@ -279,7 +279,7 @@ dequeue:
 	sd	s3, 32(sp)
 	sd	s4, 40(sp)
 
-	call	redblacktree_pop_min
+	call	redblacktree_pop_leftmost
 
 	lw	s0, VALUE_LOSS(a0)
 	lh	s1, VALUE_X(a0)
